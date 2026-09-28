@@ -1,12 +1,12 @@
 // Service worker: la app funciona sin conexión.
-const VERSION = 'forja-v3';
+const VERSION = 'forja-v4';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './css/app.css', './css/fonts.css',
   './fonts/Figtree.woff2', './fonts/BigShouldersDisplay.woff2',
   './js/app.js', './js/core.js', './js/coach.js', './js/ui.js',
   './js/data/exercises.js', './js/data/foods.js', './js/data/plans.js',
   './js/views/today.js', './js/views/train.js', './js/views/workout.js',
-  './js/views/nutrition.js', './js/views/progress.js', './js/views/profile.js', './js/views/gym.js', './js/data/equipment.js',
+  './js/views/nutrition.js', './js/views/progress.js', './js/views/profile.js', './js/views/gym.js', './js/data/equipment.js', './js/data/splits.js',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-180.png',
 ];
 

@@ -3,7 +3,7 @@ import { S, dayKey, addDays, parseDay, round, uid, fmtNum } from './core.js';
 import { EX_BY_ID, EXERCISES } from './data/exercises.js';
 import { GYM_PRESETS, FOCUS, DEFAULT_WEEKDAYS, WEEKDAYS } from './data/equipment.js';
 import { FOODS } from './data/foods.js';
-import { PROGRAMS } from './data/plans.js';
+import { baseProgram, cycleLength, recommendedSplit } from './data/splits.js';
 
 export const ACTIVITY = [
   { v: 1.375, label: 'Ligera', desc: 'Trabajo sentado y entrenas 2-3 días' },
@@ -182,13 +182,15 @@ export const estMinutesItems = items => Math.round(items.reduce((a, e) => a + e.
 
 export function trainingOpts(p = S.profile) {
   const weekdays = p?.weekdays?.length ? p.weekdays : DEFAULT_WEEKDAYS[p?.days || 4];
-  return { weekdays, sessionMin: p?.sessionMin || 60, focus: p?.focus || [], exp: p?.exp || 'novato' };
+  return {
+    weekdays, sessionMin: p?.sessionMin || 60, focus: p?.focus || [], exp: p?.exp || 'novato',
+    style: p?.style || 'auto', split: p?.split || recommendedSplit(weekdays.length),
+  };
 }
 
 // Genera un programa adaptado a días, material, duración, experiencia y prioridades.
 export function generateProgram(opts = trainingOpts(), equip = gymEquip()) {
-  const days = Math.min(6, Math.max(2, opts.weekdays.length));
-  const prog = PROGRAMS[days];
+  const prog = baseProgram(opts);
   const focusM = new Set(opts.focus.flatMap(f => FOCUS[f]?.m || []));
   const changes = [];
   const routines = prog.routines.map(r => {
@@ -245,7 +247,39 @@ export function generateProgram(opts = trainingOpts(), equip = gymEquip()) {
     }
     return { id: uid(), name: r.name, exercises: items };
   });
+  // Tope de volumen semanal por músculo: más de ~20 series directas apenas suma y cuesta recuperar
+  const k = opts.weekdays.length / Math.max(1, cycleLength(opts));
+  const all = routines.flatMap(r => r.exercises);
+  const stuck = new Set();
+  for (let guard = 0; guard < 200; guard++) {
+    // Misma cuenta que se muestra: series directas + 0,5 por serie como músculo secundario
+    const eff = {};
+    for (const e of all) {
+      const x = exById(e.exId);
+      eff[x.m] = (eff[x.m] || 0) + e.sets * k;
+      for (const m of x.sec || []) eff[m] = (eff[m] || 0) + e.sets * k * 0.5;
+    }
+    const over = Object.keys(eff).find(m => !stuck.has(m) && eff[m] > (focusM.has(m) ? 24 : 22));
+    if (!over) break;
+    // Se recorta el ejercicio con más series de ese músculo (a igualdad, el último del programa)
+    const pool = all.filter(e => exById(e.exId).m === over && e.sets > 2);
+    if (!pool.length) { stuck.add(over); continue; }
+    const cand = pool.reduce((a, b) => (b.sets >= a.sets ? b : a));
+    cand.sets--;
+  }
   return { name: prog.name, why: prog.why, routines, changes };
+}
+
+// Series efectivas por semana y grupo muscular que da un programa (secundarios cuentan 0,5)
+export function plannedWeeklySets(routines, opts) {
+  const perCycle = {};
+  for (const r of routines) for (const e of r.exercises) {
+    const x = exById(e.exId);
+    perCycle[x.m] = (perCycle[x.m] || 0) + e.sets;
+    for (const m of x.sec || []) perCycle[m] = (perCycle[m] || 0) + e.sets * 0.5;
+  }
+  const k = opts.weekdays.length / Math.max(1, cycleLength(opts));
+  return Object.fromEntries(Object.entries(perCycle).map(([m, v]) => [m, v * k]));
 }
 
 // Cambia los ejercicios de las rutinas actuales que no se pueden hacer con el material

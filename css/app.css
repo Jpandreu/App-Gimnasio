@@ -655,3 +655,20 @@ em.na { font-style: normal; color: var(--warn); }
 .hero-card.rest-day { background: var(--surface); }
 .hero-card.rest-day p b { color: var(--fg); }
 .chip .i { flex: none; }
+
+/* ---------- Estilo de rutina ---------- */
+.opt b em.rec { font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 99px; margin-left: 6px; vertical-align: 2px; }
+.split-ed { gap: 10px; }
+.zone-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+.zone-row + .zone-row { border-top: 1px solid var(--line); padding-top: 10px; }
+.zone-row small { display: block; font-size: 12px; color: var(--muted); }
+.split-ed .stepper { background: var(--surface); }
+.split-ed .btn { align-self: flex-start; }
+.advice-mini { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); padding: 9px 11px; border-radius: 11px; line-height: 1.4; }
+.advice-mini .i { width: 16px; height: 16px; margin-top: 1px; }
+.pp-sets { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.pp-sets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.pps { background: var(--surface); border-radius: 10px; padding: 7px 4px; text-align: center; display: flex; flex-direction: column; border-bottom: 3px solid var(--dim); min-width: 0; }
+.pps b { font-size: 17px; }
+.pps span { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pps.ok { border-bottom-color: var(--good); } .pps.mid { border-bottom-color: var(--warn); } .pps.low { border-bottom-color: var(--bad); } .pps.high { border-bottom-color: var(--warm); }

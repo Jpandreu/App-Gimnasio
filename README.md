@@ -8,7 +8,9 @@ Es una **PWA** (aplicación web instalable): se instala en la pantalla de inicio
 
 **Entrenamiento**
 - **Mi gimnasio**: marca las máquinas y el material de tu gimnasio (27 elementos, con plantillas "completo", "básico" y "en casa"). Las rutinas solo usan ejercicios que puedes hacer y, si falta algo, lo sustituyen por el equivalente más parecido (mismo patrón de movimiento y material similar).
-- **Planificador**: eliges qué días de la semana vas (2 a 6), cuánto dura cada sesión (45-90 min), tu experiencia y hasta dos músculos a priorizar. La app genera el programa con vista previa: Full body (2-3 días), Torso/Pierna (4), Torso/Pierna + PPL (5) o Push/Pull/Legs (6).
+- **Planificador**: eliges qué días de la semana vas (2 a 6), cuánto dura cada sesión (45-90 min), tu experiencia y hasta dos músculos a priorizar.
+- **Estilo de rutina**: *Recomendado* (cada músculo 2 veces por semana), *Push/Pull/Legs* o *Por grupo muscular*. En este último eliges cuántos días del ciclo dedicas a pecho, espalda, pierna, hombro y brazos. La app propone un reparto según tus días, integra bíceps y tríceps con espalda y pecho si no hay día de brazos y avisa si un grupo se entrena menos de 2 veces por semana.
+- La vista previa muestra las series semanales por músculo frente a la zona óptima (10-20), y el generador limita el volumen para no pasarse. La app genera el programa con vista previa: Full body (2-3 días), Torso/Pierna (4), Torso/Pierna + PPL (5) o Push/Pull/Legs (6).
 - La pantalla Hoy sabe si te toca entrenar o descansar, y la semana marca tus días planificados.
 - Crea y edita rutinas: series, rango de repeticiones y descanso por ejercicio.
 - Biblioteca de 76 ejercicios con indicaciones técnicas, filtro "solo mi gimnasio" y ejercicios propios. Al cambiar un ejercicio durante el entreno te propone alternativas.
