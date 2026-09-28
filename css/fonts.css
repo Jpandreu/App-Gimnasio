@@ -1,0 +1,3 @@
+/* Fuentes incluidas en la app para que funcione sin conexión (Google Fonts, licencia SIL OFL). Subconjunto latino: incluye á é í ó ú ñ ü ¿ ¡ */
+@font-face { font-family: 'Big Shoulders Display'; font-style: normal; font-weight: 700 800; font-display: swap; src: url('../fonts/BigShouldersDisplay.woff2') format('woff2'); }
+@font-face { font-family: 'Figtree'; font-style: normal; font-weight: 400 800; font-display: swap; src: url('../fonts/Figtree.woff2') format('woff2'); }
