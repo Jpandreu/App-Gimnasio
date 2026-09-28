@@ -54,6 +54,32 @@ function sheetsHTML() {
   }).join('');
 }
 
+function shell() {
+  if (root.dataset.shell === '1') return;
+  root.dataset.shell = '1';
+  root.innerHTML = `
+    <main id="view"></main>
+    <div id="mini"></div>
+    <nav class="tabbar" id="tabbar" aria-label="Secciones"><i class="tab-lens" aria-hidden="true"></i>${TABS.map(([id, label, ic]) =>
+      `<a href="#${id}" data-tab="${id}">${icon(ic)}<span>${label}</span></a>`).join('')}</nav>
+    <div id="wk-layer"></div>
+    <div id="sheets"></div>
+    <div class="status-veil" aria-hidden="true"></div>`;
+}
+
+// iOS 26: en apps instaladas con barra de estado translúcida, la altura del viewport llega
+// recortada en la altura de la Dynamic Island y lo anclado abajo queda flotando. Se usa la altura real.
+function fitViewport() {
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  let h = innerHeight;
+  const gap = screen.height - innerHeight;
+  if (standalone && gap > 0 && gap < 110 && Math.abs(screen.width - innerWidth) < 2) h = screen.height;
+  document.documentElement.style.setProperty('--app-h', `${h}px`);
+}
+fitViewport();
+addEventListener('resize', fitViewport);
+addEventListener('orientationchange', () => setTimeout(fitViewport, 300));
+
 function doRender() {
   // Guardar scroll y foco
   root.querySelectorAll('[data-scroll]').forEach(el => { scrollMem[el.dataset.scroll] = el.scrollTop; });
@@ -62,18 +88,31 @@ function doRender() {
   const sel = focusId && 'selectionStart' in ae ? (() => { try { return [ae.selectionStart, ae.selectionEnd]; } catch { return null; } })() : null;
 
   if (!S.profile) {
+    root.dataset.shell = '';
     root.innerHTML = onboarding() + `<div id="sheets">${sheetsHTML()}</div>`;
   } else {
     if (!TABS.some(t => t[0] === ui.tab)) ui.tab = 'hoy';
+    shell();
     const view = TABS.find(t => t[0] === ui.tab)[3];
-    const wk = S.active && ui.wkOpen;
-    root.innerHTML = `
-      <main id="view" class="${S.active && !ui.wkOpen ? 'has-mini' : ''}">${view()}</main>
-      ${miniBar()}
-      <nav class="tabbar" aria-label="Secciones">${TABS.map(([id, label, ic]) =>
-        `<a href="#${id}" class="${ui.tab === id ? 'on' : ''}" ${ui.tab === id ? 'aria-current="page"' : ''}>${icon(ic)}<span>${label}</span></a>`).join('')}</nav>
-      ${wk ? `<div id="wk-layer">${workoutView()}</div>` : ''}
-      <div id="sheets">${sheetsHTML()}</div>`;
+    const viewEl = document.getElementById('view');
+    viewEl.className = S.active && !ui.wkOpen ? 'has-mini' : '';
+    viewEl.innerHTML = view();
+    document.getElementById('mini').innerHTML = miniBar();
+    // La barra de pestañas no se vuelve a pintar: así la lente de cristal se desliza entre pestañas
+    const bar = document.getElementById('tabbar');
+    const i = TABS.findIndex(t => t[0] === ui.tab);
+    if (bar.style.getPropertyValue('--i') !== String(i)) {
+      const lens = bar.querySelector('.tab-lens');
+      if (bar.style.getPropertyValue('--i') !== '') lens.animate?.([{ scale: '1' }, { scale: '1.18 0.86' }, { scale: '1' }], { duration: 420, easing: 'ease-out' });
+      bar.style.setProperty('--i', i);
+    }
+    bar.querySelectorAll('a').forEach(a => {
+      const on = a.dataset.tab === ui.tab;
+      a.classList.toggle('on', on);
+      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    document.getElementById('wk-layer').innerHTML = S.active && ui.wkOpen ? workoutView() : '';
+    document.getElementById('sheets').innerHTML = sheetsHTML();
   }
   renderedSheets = ui.sheets.length;
   document.body.classList.toggle('locked', !!(ui.sheets.length || (S.active && ui.wkOpen)));

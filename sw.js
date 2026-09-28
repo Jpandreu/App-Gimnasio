@@ -1,5 +1,5 @@
 // Service worker: la app funciona sin conexión.
-const VERSION = 'forja-v2';
+const VERSION = 'forja-v3';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './css/app.css', './css/fonts.css',
   './fonts/Figtree.woff2', './fonts/BigShouldersDisplay.woff2',
