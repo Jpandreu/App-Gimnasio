@@ -706,3 +706,40 @@ em.ev { font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing:
 .ev-C { color: var(--muted); background: var(--surface2); }
 .acc summary .grow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .supp-lib small { line-height: 1.4; }
+
+/* ---------- Platos personalizables, comidas guardadas y recetas ---------- */
+.dish-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.dish-tile { display: flex; flex-direction: column; gap: 3px; padding: 14px; border-radius: var(--r-md); background: var(--surface2); text-align: left; min-height: 72px; justify-content: center; }
+.dish-tile b { font-size: 14.5px; line-height: 1.25; }
+.dish-tile small { color: var(--muted); font-size: 12px; }
+.dish-tile:active { transform: scale(.98); }
+.dish-i { width: 16px; height: 16px; color: var(--c-carb); vertical-align: -3px; }
+.fav-i { width: 14px; height: 14px; color: var(--warn); fill: var(--warn); vertical-align: -2px; }
+.dish-row .dish-i { width: 22px; height: 22px; }
+.dish-prev { position: sticky; top: -8px; z-index: 2; background: var(--surface); padding-top: 8px; margin-top: -8px; }
+.dish-group { display: flex; flex-direction: column; gap: 8px; }
+.dish-group .label em { font-style: normal; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--dim); }
+.opt-chip { height: auto; min-height: 36px; padding: 6px 12px; white-space: normal; text-align: left; }
+.opt-chip em { font-variant-numeric: tabular-nums; }
+.opt-chip .ck { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--dim); display: grid; place-items: center; flex: none; }
+.opt-chip.on .ck { border-color: currentColor; }
+.opt-chip .ck .i { width: 12px; height: 12px; stroke-width: 3.4; }
+.qty-row { display: flex; align-items: center; gap: 12px; }
+.qty-row > span:first-child { font-size: 13px; font-weight: 600; color: var(--muted); flex: 1; }
+.dish-ing summary { cursor: pointer; list-style: none; }
+.dish-ing summary::-webkit-details-marker { display: none; }
+.dish-ing ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; }
+.dish-ing li { display: flex; justify-content: space-between; color: var(--muted); }
+.fav-btn { align-self: flex-start; }
+.fav-btn.on { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); border-color: transparent; }
+.fav-btn.on .i { fill: currentColor; }
+.saved-meal { padding-inline: 4px; gap: 6px; }
+.sm-main { text-align: left; display: flex; flex-direction: column; }
+.sm-main small { font-size: 12.5px; }
+.rc-list { gap: 4px; }
+.rc-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.rc-row b { display: block; font-size: 14.5px; }
+.rc-row small { font-size: 12.5px; }
+.rc-list .btn { align-self: flex-start; margin-top: 6px; }
+.list.flush > .section-t { margin: 14px 4px 2px; }
+.meal-head .icon-btn { margin-right: -4px; }

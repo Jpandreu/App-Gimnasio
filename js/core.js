@@ -13,6 +13,8 @@ const DEFAULT = () => ({
   customExercises: [],
   gym: null,
   supps: [],
+  savedMeals: [],
+  favFoods: [],
   suppLog: {},
   log: {},
   weights: [],

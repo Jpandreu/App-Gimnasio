@@ -5,6 +5,7 @@ import { MEAL_PLANS, MEAL_LABELS, MEAL_ORDER } from '../data/plans.js';
 import { icon, seg, ring, macroBar } from '../ui.js';
 import { waterCard } from './today.js';
 import { suppsTab } from './supps.js';
+import { dishMatches, dishGrid, editDishItem, savedMealsList, isFav, addRecipeIngredient } from './meals.js';
 
 const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const kcalFmt = v => Math.round(v).toLocaleString('es-ES');
@@ -46,9 +47,10 @@ function diary() {
     const mk = items.reduce((a, i) => a + i.kcal, 0), mp = items.reduce((a, i) => a + i.p, 0);
     return `<section class="card meal">
       <div class="meal-head"><div class="grow"><b>${MEAL_LABELS[m]}</b>${items.length ? `<small class="muted num">${kcalFmt(mk)} kcal · ${Math.round(mp)} g proteína</small>` : ''}</div>
+        <button class="icon-btn sm" data-a="mealMenu" data-meal="${m}" aria-label="Opciones de ${MEAL_LABELS[m]}">${icon('more')}</button>
         <button class="add-btn" data-a="addFood" data-meal="${m}" aria-label="Añadir a ${MEAL_LABELS[m]}">${icon('plus')}</button></div>
       ${items.map(it => `<button class="food-row" data-a="editItem" data-id="${it.id}">
-        <span class="grow"><b>${esc(it.name)}</b><small class="muted">${it.g ? `${fmtNum(it.g, 0)} g · ` : ''}P ${Math.round(it.p)} · H ${Math.round(it.c)} · G ${Math.round(it.f)}</small></span>
+        <span class="grow"><b>${it.dish ? `${icon('chef', 'dish-i')} ` : ''}${esc(it.name)}</b><small class="muted">${it.g ? `${fmtNum(it.g, 0)} g · ` : ''}P ${Math.round(it.p)} · H ${Math.round(it.c)} · G ${Math.round(it.f)}</small></span>
         <span class="num kc">${kcalFmt(it.kcal)}</span></button>`).join('')}
     </section>`;
   }).join('')}
@@ -65,38 +67,64 @@ A.copyDay = () => {
 
 // ---------- Buscador ----------
 A.addFood = (el) => { ui.fs = { meal: el.dataset.meal, q: '', cat: 'recientes' }; openSheet('foodSearch'); };
+const foodRow = f => {
+  const sv = f.s?.[0];
+  const info = sv ? `${esc(sv[0])} (${sv[1]} g) · ${Math.round(f.kcal * sv[1] / 100)} kcal` : `100 g · ${Math.round(f.kcal)} kcal`;
+  return `<button class="row food-pick" data-a="pickFood" data-id="${f.id}">
+    <span class="grow"><b>${isFav(f.id) ? `${icon('star', 'fav-i')} ` : ''}${esc(f.name)}</b><small class="muted">${info} · P ${fmtNum(f.p * (sv ? sv[1] : 100) / 100, 1)} g</small></span>${icon('plus', 'dim')}</button>`;
+};
 function foodResults() {
   const { q, cat } = ui.fs;
-  let list;
+  const recipeMode = ui.fs.mode === 'recipe';
+  let list, top = '';
   if (q.trim()) {
     const words = norm(q).split(/\s+/).filter(Boolean);
     const nq = norm(q.trim());
-    const score = f => { const n = norm(f.name); return n.startsWith(nq) ? 0 : n.split(/\s+/).some(w => w.startsWith(words[0])) ? 1 : 2; };
+    const score = f => { const n = norm(f.name); return (isFav(f.id) ? -1 : 0) + (n.startsWith(nq) ? 0 : n.split(/\s+/).some(w => w.startsWith(words[0])) ? 1 : 2); };
     list = allFoods().filter(f => words.every(w => norm(f.name).includes(w))).sort((a, b) => score(a) - score(b));
+    if (!recipeMode) {
+      const ds = dishMatches(q);
+      if (ds.length) top += `<h3 class="section-t">Montar a tu gusto</h3>${ds.map(d => `<button class="row food-pick dish-row" data-a="openDish" data-id="${d.id}">${icon('chef', 'dish-i')}<span class="grow"><b>${esc(d.name)}</b><small class="muted">Elige ingredientes, extras y salsas</small></span>${icon('right', 'dim')}</button>`).join('')}`;
+      const sm = savedMealsList(q);
+      if (sm) top += `<h3 class="section-t">Mis comidas</h3>${sm}`;
+      if (top && list.length) top += `<h3 class="section-t">Alimentos</h3>`;
+    }
+  } else if (cat === 'platos') {
+    return `<p class="hint">Elige un plato y márcale ingredientes, extras, salsas y acompañamiento. Las calorías se calculan con cada ingrediente.</p>${dishGrid()}`;
+  } else if (cat === 'guardadas') {
+    const sm = savedMealsList();
+    return sm || `<p class="muted center pad">Guarda una comida que repitas a menudo desde el botón ··· de cada comida del diario.</p>`;
+  } else if (cat === 'favoritos') {
+    list = (S.favFoods || []).map(foodById).filter(Boolean);
+    if (!list.length) return `<p class="muted center pad">Marca alimentos con la estrella al añadirlos y los tendrás aquí.</p>`;
   } else if (cat === 'recientes') {
     list = S.recentFoods.map(foodById).filter(Boolean);
     if (!list.length) return `<p class="muted center pad">Aquí verás lo que comes a menudo. Busca un alimento o elige una categoría.</p>`;
   } else if (cat === 'mios') {
     list = S.customFoods;
-    if (!list.length) return `<p class="muted center pad">Crea tus alimentos con los datos de la etiqueta.</p>`;
+    if (!list.length) return `<p class="muted center pad">Crea tus alimentos con los datos de la etiqueta o tus recetas por ingredientes.</p>`;
   } else list = allFoods().filter(f => f.cat === cat);
-  if (!list.length) return `<p class="muted center pad">Sin resultados para "${esc(q)}". Puedes crearlo.</p>`;
-  return list.slice(0, 80).map(f => `<button class="row food-pick" data-a="pickFood" data-id="${f.id}">
-    <span class="grow"><b>${esc(f.name)}</b><small class="muted">${Math.round(f.kcal)} kcal · P ${fmtNum(f.p, 1)} · H ${fmtNum(f.c, 1)} · G ${fmtNum(f.f, 1)} <em>/100 g</em></small></span>${icon('plus', 'dim')}</button>`).join('');
+  if (!list.length && !top) return `<p class="muted center pad">Sin resultados para "${esc(q)}". Puedes crearlo.</p>`;
+  return top + list.slice(0, 80).map(foodRow).join('');
 }
-SHEETS.foodSearch = () => ({
-  title: `Añadir a ${MEAL_LABELS[ui.fs.meal].toLowerCase()}`, full: true,
-  body: `<div class="search">${icon('search')}<input id="food-q" type="search" placeholder="Buscar alimento" value="${esc(ui.fs.q)}" data-in="foodQ" autocomplete="off"></div>
-    <div class="chips scroll-x">${[['recientes', 'Recientes'], ['mios', 'Mis alimentos'], ...Object.entries(FOOD_CATS)].map(([k, l]) => `<button class="chip ${ui.fs.cat === k && !ui.fs.q ? 'on' : ''}" data-a="foodCat" data-v="${k}">${l}</button>`).join('')}</div>
-    <div class="btn-row"><button class="btn sm ghost" data-a="quickAdd">${icon('bolt')} Añadir kcal rápidas</button><button class="btn sm ghost" data-a="newFood">${icon('plus')} Crear alimento</button></div>
-    <div class="list flush" id="food-results">${foodResults()}</div>`,
-});
-IN.foodQ = (el) => { ui.fs.q = el.value; document.getElementById('food-results').innerHTML = foodResults(); };
+SHEETS.foodSearch = () => {
+  const recipeMode = ui.fs.mode === 'recipe';
+  const chips = recipeMode ? [['recientes', 'Recientes'], ['favoritos', 'Favoritos'], ['mios', 'Mis alimentos'], ...Object.entries(FOOD_CATS)]
+    : [['recientes', 'Recientes'], ['favoritos', 'Favoritos'], ['platos', 'Montar plato'], ['guardadas', 'Mis comidas'], ['mios', 'Mis alimentos'], ...Object.entries(FOOD_CATS)];
+  return {
+    title: recipeMode ? 'Añadir ingrediente' : `Añadir a ${MEAL_LABELS[ui.fs.meal].toLowerCase()}`, full: true,
+    body: `<div class="search">${icon('search')}<input id="food-q${recipeMode ? '-r' : ''}" type="search" placeholder="${recipeMode ? 'Buscar ingrediente' : 'Buscar: pollo, hamburguesa, pizza…'}" value="${esc(ui.fs.q)}" data-in="foodQ" autocomplete="off"></div>
+    <div class="chips scroll-x">${chips.map(([k, l]) => `<button class="chip ${ui.fs.cat === k && !ui.fs.q ? 'on' : ''}" data-a="foodCat" data-v="${k}">${k === 'platos' ? icon('chef') + ' ' : k === 'favoritos' ? icon('star') + ' ' : ''}${l}</button>`).join('')}</div>
+    ${recipeMode ? '' : `<div class="btn-row"><button class="btn sm ghost" data-a="quickAdd">${icon('bolt')} Kcal rápidas</button><button class="btn sm ghost" data-a="newFood">${icon('plus')} Alimento</button><button class="btn sm ghost" data-a="newRecipe">${icon('chef')} Receta</button></div>`}
+    <div class="list flush" id="food-results${recipeMode ? '-r' : ''}">${foodResults()}</div>`,
+  };
+};
+IN.foodQ = (el) => { ui.fs.q = el.value; document.getElementById(`food-results${ui.fs.mode === 'recipe' ? '-r' : ''}`).innerHTML = foodResults(); };
 A.foodCat = (el) => { ui.fs.cat = el.dataset.v; ui.fs.q = ''; render(); };
 A.pickFood = (el) => {
   const f = foodById(el.dataset.id);
   const g = f.s?.[0]?.[1] || 100;
-  ui.fa = { fid: f.id, g, meal: ui.fs.meal, editId: null };
+  ui.fa = { fid: f.id, g, meal: ui.fs.meal, editId: null, recipe: ui.fs.mode === 'recipe' };
   openSheet('foodAmount');
 };
 
@@ -108,6 +136,9 @@ function amountPreview() {
 }
 SHEETS.foodAmount = () => {
   const fa = ui.fa, f = foodById(fa.fid);
+  const custom = f.id.startsWith('u-') || f.id.startsWith('r-');
+  const serv = f.s?.length ? f.s.flatMap(([l, g], si) => (si ? [1, 2] : [0.5, 1, 1.5, 2, 3]).map(n =>
+    `<button class="chip" data-a="gSet" data-v="${round(g * n, 1)}">${n !== 1 ? `${String(n).replace('.', ',')} × ` : ''}${esc(l)} <em>${round(g * n, 1)} g</em></button>`)).join('') : '';
   return {
     title: f.name,
     body: `<div id="amount-prev" class="amount-prev">${amountPreview()}</div>
@@ -117,11 +148,14 @@ SHEETS.foodAmount = () => {
           <label class="grams"><input id="fa-g" type="number" inputmode="decimal" value="${round(fa.g, 1)}" data-in="faG"><span>g</span></label>
           <button class="icon-btn" data-a="gStep" data-v="10" aria-label="Sumar 10 g">${icon('plus')}</button>
         </div></div>
-      ${f.s?.length ? `<div class="chips wrap">${f.s.flatMap(([l, g]) => [1, 2].map(n => `<button class="chip" data-a="gSet" data-v="${g * n}">${n > 1 ? `${n} × ` : ''}${esc(l)} <em>${g * n} g</em></button>`)).join('')}<button class="chip" data-a="gSet" data-v="100">100 g</button></div>` : ''}
-      <div class="field"><span>Comida</span><div class="chips wrap">${MEAL_ORDER.map(m => `<button class="chip ${fa.meal === m ? 'on' : ''}" data-a="faMeal" data-v="${m}">${MEAL_LABELS[m]}</button>`).join('')}</div></div>`,
-    foot: fa.editId
-      ? `<div class="btn-row"><button class="btn ghost danger" data-a="delItem">${icon('trash')} Quitar</button><button class="btn primary" data-a="saveAmount">Guardar</button></div>`
-      : `<button class="btn primary block" data-a="saveAmount">Añadir</button>`,
+      <div class="chips wrap">${serv}<button class="chip" data-a="gSet" data-v="100">100 g</button></div>
+      <button type="button" class="chip fav-btn ${isFav(f.id) ? 'on' : ''}" data-a="toggleFav" data-id="${f.id}" aria-pressed="${isFav(f.id)}">${icon('star')} ${isFav(f.id) ? 'En favoritos' : 'Añadir a favoritos'}</button>
+      ${fa.recipe ? '' : `<div class="field"><span>Comida</span><div class="chips wrap">${MEAL_ORDER.map(m => `<button class="chip ${fa.meal === m ? 'on' : ''}" data-a="faMeal" data-v="${m}">${MEAL_LABELS[m]}</button>`).join('')}</div></div>`}
+      ${custom && !fa.recipe ? `<button class="btn block text danger" data-a="delCustomFood" data-id="${f.id}">Borrar de mis alimentos</button>` : ''}`,
+    foot: fa.recipe ? `<button class="btn primary block" data-a="saveAmount">Añadir a la receta</button>`
+      : fa.editId
+        ? `<div class="btn-row"><button class="btn ghost danger" data-a="delItem">${icon('trash')} Quitar</button><button class="btn primary" data-a="saveAmount">Guardar</button></div>`
+        : `<button class="btn primary block" data-a="saveAmount">Añadir</button>`,
   };
 };
 IN.faG = (el) => { ui.fa.g = Math.max(0, num(el.value)); document.getElementById('amount-prev').innerHTML = amountPreview(); };
@@ -131,6 +165,7 @@ A.faMeal = (el) => { ui.fa.meal = el.dataset.v; render(); };
 A.saveAmount = () => {
   const fa = ui.fa, f = foodById(fa.fid);
   if (!(fa.g > 0)) { toast('Indica una cantidad'); return; }
+  if (fa.recipe) { addRecipeIngredient(f, fa.g); return; }
   const log = dayLog(ui.day || dayKey());
   if (fa.editId) {
     log.items = log.items.map(i => i.id === fa.editId ? { ...makeLogItem(f, fa.g, fa.meal), id: i.id } : i);
@@ -146,6 +181,7 @@ A.saveAmount = () => {
 A.editItem = (el) => {
   const it = peekLog(ui.day || dayKey()).items.find(i => i.id === el.dataset.id);
   if (!it) return;
+  if (it.dish && editDishItem(it)) return;
   if (it.fid && foodById(it.fid)) { ui.fa = { fid: it.fid, g: it.g, meal: it.meal, editId: it.id }; openSheet('foodAmount'); }
   else { ui.qa = { ...it }; openSheet('quickAdd'); }
 };
