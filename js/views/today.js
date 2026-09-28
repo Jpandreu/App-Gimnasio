@@ -1,5 +1,5 @@
 import { S, ui, A, IN, SHEETS, render, commit, save, esc, num, fmtNum, round, dayKey, addDays, parseDay, fmtDay, fmtMin, openSheet, closeSheet, toast, DOW } from '../core.js';
-import { targets, dayTotals, peekLog, dayLog, nextRoutine, exById, weightTrend, calorieAdvice, tipOfDay, weekSessions, streakWeeks, sessionStats, currentWeight } from '../coach.js';
+import { targets, dayTotals, peekLog, dayLog, nextRoutine, exById, isTrainingDay, nextTrainingDate, weekdayName, trainingOpts, weightTrend, calorieAdvice, tipOfDay, weekSessions, streakWeeks, sessionStats, currentWeight } from '../coach.js';
 import { MUSCLES } from '../data/exercises.js';
 import { icon, ring, macroBar, sparkline } from '../ui.js';
 
@@ -39,9 +39,19 @@ function workoutCard() {
       <p class="muted">Genera un programa o crea tu propia rutina.</p>
       <button class="btn primary block" data-a="goTab" data-v="entrenar">Ir a entrenar</button></section>`;
   }
+  if (!isTrainingDay() && !ui.forceTrain) {
+    const nd = nextTrainingDate();
+    const when = nd ? (dayKey(nd) === addDays(today, 1) ? 'mañana' : `el ${weekdayName(nd).toLowerCase()}`) : '';
+    return `<section class="card hero-card rest-day">
+      <div class="label">${icon('calendar')} Día de descanso</div>
+      <h2>Hoy toca recuperar</h2>
+      <p class="muted">El músculo crece mientras descansas. Come tus calorías y duerme bien.${nd ? ` Próximo entreno ${when}: <b>${esc(r.name)}</b>.` : ''}</p>
+      <button class="btn ghost block" data-a="forceTrain">${icon('play')} Entrenar igualmente</button>
+    </section>`;
+  }
   const muscles = [...new Set(r.exercises.map(e => exById(e.exId).m))].slice(0, 4);
   return `<section class="card hero-card">
-    <div class="row-between"><div class="label">Siguiente entreno</div><span class="chip">${estMinutes(r)} min aprox.</span></div>
+    <div class="row-between"><div class="label">${isTrainingDay() ? 'Hoy toca' : 'Siguiente entreno'}</div><span class="chip">${estMinutes(r)} min aprox.</span></div>
     <h2>${esc(r.name)}</h2>
     <div class="chips">${muscles.map(m => `<span class="chip soft">${MUSCLES[m]}</span>`).join('')}</div>
     <ol class="mini-ex">${r.exercises.slice(0, 4).map(e => `<li><span>${esc(exById(e.exId).name)}</span><small>${e.sets} × ${e.min}-${e.max}</small></li>`).join('')}
@@ -55,11 +65,12 @@ function weekStrip() {
   const mondayK = dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)));
   const trained = new Set(S.sessions.map(s => dayKey(s.start)));
   const today = dayKey();
+  const plan = trainingOpts().weekdays;
   const cells = Array.from({ length: 7 }, (_, i) => {
     const k = addDays(mondayK, i);
-    return `<div class="wd ${trained.has(k) ? 'on' : ''} ${k === today ? 'today' : ''}"><span>${DOW[parseDay(k).getDay()].charAt(0)}</span><i>${trained.has(k) ? icon('check') : ''}</i></div>`;
+    return `<div class="wd ${trained.has(k) ? 'on' : ''} ${plan.includes(parseDay(k).getDay()) ? 'plan' : ''} ${k === today ? 'today' : ''}"><span>${DOW[parseDay(k).getDay()].charAt(0)}</span><i>${trained.has(k) ? icon('check') : ''}</i></div>`;
   }).join('');
-  const n = weekSessions().length, goal = S.profile.days;
+  const n = weekSessions().length, goal = trainingOpts().weekdays.length;
   const streak = streakWeeks();
   return `<section class="card week">
     <div class="row-between"><div><div class="label">Esta semana</div><b class="num">${n}</b><span class="muted"> / ${goal} entrenos</span></div>
@@ -142,6 +153,7 @@ export function todayView() {
 
 // ---------- Acciones ----------
 A.goTab = (el) => { location.hash = el.dataset.v; };
+A.forceTrain = () => { ui.forceTrain = true; render(); };
 A.water = (el) => { const l = dayLog(el.dataset.k); l.water = Math.max(0, (l.water || 0) + num(el.dataset.v)); commit(); };
 A.waterSet = (el) => { const l = dayLog(el.dataset.k); const v = num(el.dataset.v); l.water = l.water === v ? v - 250 : v; commit(); };
 A.applyAdvice = (el) => { S.profile.kcalAdjust = (S.profile.kcalAdjust || 0) + num(el.dataset.v); commit(); toast(`Objetivo: ${targets().kcal} kcal`); };

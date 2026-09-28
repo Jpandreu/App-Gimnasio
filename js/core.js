@@ -11,6 +11,7 @@ const DEFAULT = () => ({
   active: null,
   customFoods: [],
   customExercises: [],
+  gym: null,
   log: {},
   weights: [],
   measures: [],

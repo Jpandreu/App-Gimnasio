@@ -46,6 +46,14 @@ export const MEAL_ORDER = ['desayuno', 'almuerzo', 'comida', 'merienda', 'cena',
 
 // Plantillas de programa. Cada ejercicio: [id, series, repMin, repMax, descanso(s)]
 export const PROGRAMS = {
+  2: {
+    name: 'Full body 2 días',
+    why: 'Dos sesiones completas por semana. Suficiente para progresar si tienes poco tiempo.',
+    routines: [
+      { name: 'Full body A', items: [['sentadilla', 3, 6, 8, 180], ['press-banca', 3, 6, 8, 180], ['remo-barra', 3, 8, 10, 150], ['peso-muerto-rumano', 2, 8, 10, 150], ['elev-laterales', 3, 12, 20, 60], ['curl-barra', 2, 10, 12, 60], ['ext-polea', 2, 10, 15, 60]] },
+      { name: 'Full body B', items: [['prensa', 3, 10, 12, 120], ['press-inclinado-manc', 3, 8, 12, 150], ['jalon', 3, 8, 12, 120], ['curl-femoral-tumbado', 3, 10, 12, 90], ['press-manc-hombro', 2, 8, 12, 120], ['curl-martillo', 2, 10, 12, 60], ['gemelo-pie', 3, 10, 15, 60]] },
+    ],
+  },
   3: {
     name: 'Full body 3 días',
     why: 'Cada músculo se entrena 3 veces por semana. Ideal si empiezas o tienes poco tiempo.',

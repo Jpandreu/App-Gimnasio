@@ -7,9 +7,11 @@ Es una **PWA** (aplicación web instalable): se instala en la pantalla de inicio
 ## Qué hace
 
 **Entrenamiento**
-- Genera un programa según los días que entrenas: Full body (3), Torso/Pierna (4), Torso/Pierna + PPL (5) o Push/Pull/Legs (6).
+- **Mi gimnasio**: marca las máquinas y el material de tu gimnasio (27 elementos, con plantillas "completo", "básico" y "en casa"). Las rutinas solo usan ejercicios que puedes hacer y, si falta algo, lo sustituyen por el equivalente más parecido (mismo patrón de movimiento y material similar).
+- **Planificador**: eliges qué días de la semana vas (2 a 6), cuánto dura cada sesión (45-90 min), tu experiencia y hasta dos músculos a priorizar. La app genera el programa con vista previa: Full body (2-3 días), Torso/Pierna (4), Torso/Pierna + PPL (5) o Push/Pull/Legs (6).
+- La pantalla Hoy sabe si te toca entrenar o descansar, y la semana marca tus días planificados.
 - Crea y edita rutinas: series, rango de repeticiones y descanso por ejercicio.
-- Biblioteca de 60 ejercicios con indicaciones técnicas, más ejercicios propios.
+- Biblioteca de 76 ejercicios con indicaciones técnicas, filtro "solo mi gimnasio" y ejercicios propios. Al cambiar un ejercicio durante el entreno te propone alternativas.
 - Registro del entreno en directo: kg y repeticiones por serie, la marca de la última vez y series de calentamiento.
 - **Coach de progresión (doble progresión)**: cuando llegas al tope del rango en todas las series te dice cuánto peso subir; si no, te pide una repetición más.
 - Temporizador de descanso automático con sonido y vibración. La pantalla no se apaga durante el entreno.
@@ -63,8 +65,8 @@ js/app.js               Shell: navegación, render y eventos
 js/core.js              Estado, guardado y utilidades
 js/coach.js             Lógica de entrenador y nutricionista
 js/ui.js                Iconos y gráficas SVG
-js/data/                Ejercicios, alimentos, programas y planes de comidas
-js/views/               Pantallas: Hoy, Entrenar, Entreno en curso, Nutrición, Progreso y Perfil
+js/data/                Ejercicios, material de gimnasio, alimentos, programas y planes de comidas
+js/views/               Pantallas: Hoy, Entrenar, Entreno en curso, Mi gimnasio, Nutrición, Progreso y Perfil
 ```
 
 Sin dependencias ni paso de compilación: HTML, CSS y JavaScript (módulos ES).

@@ -1,6 +1,7 @@
 // Lógica de entrenador y nutricionista.
 import { S, dayKey, addDays, parseDay, round, uid, fmtNum } from './core.js';
-import { EX_BY_ID } from './data/exercises.js';
+import { EX_BY_ID, EXERCISES } from './data/exercises.js';
+import { GYM_PRESETS, FOCUS, DEFAULT_WEEKDAYS, WEEKDAYS } from './data/equipment.js';
 import { FOODS } from './data/foods.js';
 import { PROGRAMS } from './data/plans.js';
 
@@ -146,16 +147,133 @@ export function scalePlan(plan, kcalTarget, t = targets()) {
 // ---------- Entrenamiento ----------
 export const exById = id => EX_BY_ID[id] || S.customExercises?.find(e => e.id === id) || { id, name: 'Ejercicio', m: 'abdomen', eq: 'corporal', inc: 2.5, tip: '', sec: [] };
 
-export function generateProgram(days) {
-  const prog = PROGRAMS[days] || PROGRAMS[4];
-  return {
-    name: prog.name,
-    routines: prog.routines.map(r => ({
-      id: uid(), name: r.name,
-      exercises: r.items.map(([exId, sets, min, max, rest]) => ({ exId, sets, min, max, rest })),
-    })),
-  };
+// ---------- Mi gimnasio ----------
+export const gymEquip = () => new Set(S.gym?.equip ?? GYM_PRESETS.completo.equip);
+
+export function canDo(e, equip = gymEquip()) {
+  if (!e) return false;
+  return (e.req || []).every(r => Array.isArray(r) ? r.some(x => equip.has(x)) : equip.has(r));
 }
+
+const isCompound = e => (e.sec || []).length > 0;
+
+// Mejor alternativa disponible: mismo patrón de movimiento, después mismo músculo.
+export function alternatives(exId, equip = gymEquip(), exclude = new Set()) {
+  const o = exById(exId);
+  const pool = [...(S.customExercises || []), ...EXERCISES].filter(e => e.id !== exId && canDo(e, equip));
+  const score = e => {
+    let sc;
+    if (e.pat && e.pat === o.pat && e.pat !== 'otro') sc = 0;
+    else if (e.m === o.m && isCompound(e) === isCompound(o)) sc = 1;
+    else if (e.m === o.m) sc = 2;
+    else return null;
+    // A igualdad de patrón, preferir un material parecido: barra → máquina → mancuernas → polea → peso corporal
+    const rank = { barra: 0, maquina: 0.1, mancuernas: 0.2, polea: 0.25, corporal: 0.45 };
+    sc += e.eq === o.eq ? 0 : (rank[e.eq] ?? 0.3);
+    if (o.eq === 'barra' && e.id.includes('multipower')) sc -= 0.08; // la barra guiada es lo más parecido
+    if (exclude.has(e.id)) sc += 3;
+    return sc;
+  };
+  return pool.map((e, i) => ({ e, sc: score(e), i })).filter(x => x.sc !== null)
+    .sort((a, b) => a.sc - b.sc || a.i - b.i).map(x => x.e);
+}
+
+export const estMinutesItems = items => Math.round(items.reduce((a, e) => a + e.sets * (45 + (e.rest || 90)), 0) / 60);
+
+export function trainingOpts(p = S.profile) {
+  const weekdays = p?.weekdays?.length ? p.weekdays : DEFAULT_WEEKDAYS[p?.days || 4];
+  return { weekdays, sessionMin: p?.sessionMin || 60, focus: p?.focus || [], exp: p?.exp || 'novato' };
+}
+
+// Genera un programa adaptado a días, material, duración, experiencia y prioridades.
+export function generateProgram(opts = trainingOpts(), equip = gymEquip()) {
+  const days = Math.min(6, Math.max(2, opts.weekdays.length));
+  const prog = PROGRAMS[days];
+  const focusM = new Set(opts.focus.flatMap(f => FOCUS[f]?.m || []));
+  const changes = [];
+  const routines = prog.routines.map(r => {
+    // Los ejercicios originales disponibles se reservan para que las sustituciones no los repitan
+    const used = new Set(r.items.map(it => it[0]).filter(id => canDo(exById(id), equip)));
+    const added = new Set();
+    let items = [];
+    for (const [exId, sets, min, max, rest] of r.items) {
+      let id = exId;
+      if (!canDo(exById(exId), equip)) {
+        const alt = alternatives(exId, equip, used)[0];
+        if (!alt) { changes.push({ from: exId, to: null }); continue; }
+        changes.push({ from: exId, to: alt.id });
+        id = alt.id;
+      }
+      if (added.has(id)) continue;
+      used.add(id); added.add(id);
+      items.push({ exId: id, sets, min, max, rest });
+    }
+    // Experiencia: los novatos recuperan peor de mucho volumen
+    if (opts.exp === 'novato') items.forEach(e => { e.sets = Math.min(e.sets, 3); });
+    // Prioridades: una serie extra en los músculos elegidos
+    items.forEach(e => { if (focusM.has(exById(e.exId).m)) e.sets = Math.min(5, e.sets + 1); });
+    // Ajustar a la duración de la sesión
+    const budget = opts.sessionMin;
+    const isFocus = e => focusM.has(exById(e.exId).m);
+    // Recortar por orden: series extra de accesorios → quitar un accesorio → series de básicos
+    const fromEnd = f => [...items].reverse().find(f);
+    const steps = [
+      () => fromEnd((e, i) => e.sets > 3 && !isFocus(e) && items.indexOf(e) >= 2),
+      () => fromEnd(e => e.sets > 3 && !isFocus(e)),
+      () => fromEnd(e => e.sets > 3),
+      () => { if (items.length <= 4) return null; const i = items.map(isFocus).lastIndexOf(false); return i >= 2 ? { remove: i } : null; },
+      () => fromEnd(e => e.sets > 2 && !isFocus(e) && items.indexOf(e) >= 2),
+      () => fromEnd(e => e.sets > 2),
+    ];
+    let guard = 80;
+    while (estMinutesItems(items) > budget + 3 && guard--) {
+      let done = false;
+      for (const st of steps) {
+        const r = st();
+        if (!r) continue;
+        if (r.remove !== undefined) items.splice(r.remove, 1); else r.sets--;
+        done = true; break;
+      }
+      if (!done) break;
+    }
+    guard = 60;
+    while (estMinutesItems(items) < budget - 10 && guard--) {
+      const cap = e => (isFocus(e) && opts.exp !== 'novato' ? 5 : 4);
+      const cand = items.filter(e => e.sets < cap(e)).sort((a, b) => (isFocus(b) - isFocus(a)) || (a.sets - b.sets))[0];
+      if (!cand) break;
+      cand.sets++;
+    }
+    return { id: uid(), name: r.name, exercises: items };
+  });
+  return { name: prog.name, why: prog.why, routines, changes };
+}
+
+// Cambia los ejercicios de las rutinas actuales que no se pueden hacer con el material
+export function adaptRoutines(equip = gymEquip()) {
+  let n = 0;
+  for (const r of S.routines) {
+    const used = new Set(r.exercises.map(e => e.exId));
+    r.exercises = r.exercises.flatMap(e => {
+      if (canDo(exById(e.exId), equip)) return [e];
+      const alt = alternatives(e.exId, equip, used)[0];
+      n++;
+      if (!alt) return [];
+      used.add(alt.id);
+      return [{ ...e, exId: alt.id }];
+    });
+  }
+  return n;
+}
+export const blockedInRoutines = (equip = gymEquip()) => S.routines.reduce((a, r) => a + r.exercises.filter(e => !canDo(exById(e.exId), equip)).length, 0);
+
+// ---------- Calendario ----------
+export const isTrainingDay = (d = new Date()) => trainingOpts().weekdays.includes(d.getDay());
+export function nextTrainingDate(from = new Date()) {
+  const wd = trainingOpts().weekdays;
+  for (let i = 1; i <= 7; i++) { const d = new Date(from.getFullYear(), from.getMonth(), from.getDate() + i); if (wd.includes(d.getDay())) return d; }
+  return null;
+}
+export const weekdayName = d => WEEKDAYS.find(w => w[0] === d.getDay())[2];
 
 export function nextRoutine() {
   if (!S.routines.length) return null;

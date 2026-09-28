@@ -1,7 +1,8 @@
 import { S, ui, A, IN, SHEETS, render, commit, save, esc, num, uid, fmtNum, round, dayKey, fmtDay, fmtMin, openSheet, closeSheet, replaceSheet, confirmBox, toast, MONTHS } from '../core.js';
-import { exById, generateProgram, nextRoutine, lastPerformance, workingSets, bestE1rm, e1rm, sessionStats } from '../coach.js';
+import { exById, nextRoutine, lastPerformance, workingSets, bestE1rm, e1rm, sessionStats, canDo, alternatives, trainingOpts, gymEquip } from '../coach.js';
 import { EXERCISES, MUSCLES, EQUIP } from '../data/exercises.js';
-import { PROGRAMS } from '../data/plans.js';
+import { WEEKDAYS, GYM_PRESETS } from '../data/equipment.js';
+import { presetOf } from './gym.js';
 import { icon, seg, empty, lineChart } from '../ui.js';
 import { estMinutes } from './today.js';
 import { startWorkout, addExercisesToWorkout, swapWorkoutExercise } from './workout.js';
@@ -24,11 +25,7 @@ function routinesTab() {
   const lastDone = id => { const s = [...S.sessions].reverse().find(x => x.routineId === id); return s ? fmtDay(dayKey(s.start)) : null; };
   return `
   ${S.active ? `<button class="card live-banner" data-a="openWorkout"><i class="pulse"></i><span class="grow"><b>${esc(S.active.name)}</b><small>Entreno en curso · toca para continuar</small></span>${icon('right')}</button>` : ''}
-  <section class="card program">
-    <div class="row-between"><div><div class="label">Programa actual</div><h2>${esc(S.programName || 'Rutinas propias')}</h2></div>
-      <button class="btn sm ghost" data-a="newProgram">${icon('sparkle')} Generar</button></div>
-    <p class="hint">Haz las rutinas en orden. La app te propone la siguiente y te dice qué peso usar.</p>
-  </section>
+  ${programCard()}
   <div class="btn-row"><button class="btn ghost" data-a="emptyWorkout">${icon('bolt')} Entreno libre</button><button class="btn ghost" data-a="newRoutine">${icon('plus')} Nueva rutina</button></div>
   ${S.routines.length ? S.routines.map((r, i) => `
     <section class="card routine ${next && next.id === r.id ? 'is-next' : ''}">
@@ -57,21 +54,17 @@ A.emptyWorkout = () => {
 };
 A.openWorkout = () => { ui.wkOpen = true; render(); };
 
-A.newProgram = () => { ui.progDays = S.profile.days; openSheet('program'); };
-SHEETS.program = () => ({
-  title: 'Generar programa',
-  body: `<p class="muted">Elige cuántos días entrenas. Sustituirá tus rutinas actuales (el historial se conserva).</p>
-    <div class="days-pick">${[3, 4, 5, 6].map(n => `<button class="${ui.progDays === n ? 'on' : ''}" data-a="progDays" data-v="${n}"><b>${n}</b><span>días</span></button>`).join('')}</div>
-    <div class="card inset"><b>${esc(PROGRAMS[ui.progDays].name)}</b><p class="muted sm">${esc(PROGRAMS[ui.progDays].why)}</p>
-    <ul class="plain">${PROGRAMS[ui.progDays].routines.map(r => `<li><b>${esc(r.name)}</b><small>${r.items.map(it => esc(exById(it[0]).name)).join(', ')}</small></li>`).join('')}</ul></div>`,
-  foot: `<button class="btn primary block" data-a="applyProgram">Usar este programa</button>`,
-});
-A.progDays = (el) => { ui.progDays = num(el.dataset.v); render(); };
-A.applyProgram = () => {
-  const p = generateProgram(ui.progDays);
-  S.programName = p.name; S.routines = p.routines; S.profile.days = ui.progDays;
-  closeSheet(); commit(); toast('Programa actualizado');
-};
+A.newProgram = (el) => A.openPlanner(el);
+
+function programCard() {
+  const o = trainingOpts(), equip = [...gymEquip()], preset = presetOf(equip);
+  return `<section class="card program">
+    <div class="label">Programa actual</div><h2>${esc(S.programName || 'Rutinas propias')}</h2>
+    <div class="wd-strip" aria-label="Días de entreno">${WEEKDAYS.map(([v, l, full]) => `<span class="${o.weekdays.includes(v) ? 'on' : ''}" title="${full}">${l}</span>`).join('')}</div>
+    <p class="hint">${o.weekdays.length} días por semana · ${o.sessionMin} min por sesión · ${preset === 'personal' ? 'material personalizado' : GYM_PRESETS[preset].name.toLowerCase()}</p>
+    <div class="btn-row"><button class="btn sm ghost" data-a="openPlanner">${icon('calendar')} Planificar</button><button class="btn sm ghost" data-a="openGym">${icon('dumbbell')} Mi gimnasio</button></div>
+  </section>`;
+}
 
 // ---------- Editor de rutina ----------
 A.newRoutine = () => { ui.draftR = { id: null, name: '', exercises: [] }; openSheet('routineEdit'); };
@@ -131,24 +124,35 @@ A.rDelete = () => {
 };
 
 // ---------- Selector de ejercicios ----------
+ui.mineOnly = true;
 A.pickEx = (el) => { ui.pick = { mode: el.dataset.mode, q: '', m: '', sel: [], idx: el.dataset.i }; openSheet('exPicker'); };
 function exMatches(q, m) {
   const qq = q.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  return allExercises().filter(e => (!m || e.m === m) && (!qq || e.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(qq)));
+  const equip = gymEquip();
+  return allExercises().filter(e => (!m || e.m === m) && (!ui.mineOnly || canDo(e, equip)) && (!qq || e.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(qq)));
 }
+const exRow = (e, p, equip) => `<button class="row ex-row ${p.sel.includes(e.id) ? 'sel' : ''}" data-a="pickToggle" data-id="${e.id}">
+      <span class="mk m-${e.m}"></span><span class="grow"><b>${esc(e.name)}</b><small>${MUSCLES[e.m]} · ${EQUIP[e.eq]}${canDo(e, equip) ? '' : ' · <em class="na">no está en tu gimnasio</em>'}</small></span>
+      <i class="tick">${p.sel.includes(e.id) ? icon('check') : ''}</i></button>`;
 function exResults() {
-  const p = ui.pick, list = exMatches(p.q, p.m);
-  return list.length ? list.map(e => `<button class="row ex-row ${p.sel.includes(e.id) ? 'sel' : ''}" data-a="pickToggle" data-id="${e.id}">
-      <span class="mk m-${e.m}"></span><span class="grow"><b>${esc(e.name)}</b><small>${MUSCLES[e.m]} · ${EQUIP[e.eq]}</small></span>
-      <i class="tick">${p.sel.includes(e.id) ? icon('check') : ''}</i></button>`).join('')
-    : `<p class="muted center pad">No hay resultados. Puedes crear el ejercicio.</p>`;
+  const p = ui.pick, list = exMatches(p.q, p.m), equip = gymEquip();
+  let alt = '';
+  if (p.mode === 'swap' && !p.q && !p.m) {
+    const cur = S.active?.exercises[+p.idx]?.exId;
+    const alts = cur ? alternatives(cur, equip).slice(0, 5) : [];
+    if (alts.length) alt = `<h3 class="section-t">Alternativas para ${esc(exById(cur).name)}</h3>${alts.map(e => exRow(e, p, equip)).join('')}<h3 class="section-t">Todos</h3>`;
+  }
+  return list.length ? alt + list.map(e => exRow(e, p, equip)).join('')
+    : `<p class="muted center pad">No hay resultados${ui.mineOnly ? ' con tu material' : ''}. Puedes crear el ejercicio.</p>`;
 }
+const mineChip = () => `<button class="chip ${ui.mineOnly ? 'on' : ''}" data-a="mineOnly" aria-pressed="${ui.mineOnly}">${icon('dumbbell')} Solo mi gimnasio</button>`;
+A.mineOnly = () => { ui.mineOnly = !ui.mineOnly; render(); };
 SHEETS.exPicker = () => {
   const p = ui.pick, single = p.mode === 'swap';
   return {
     title: single ? 'Cambiar ejercicio' : 'Añadir ejercicios', full: true,
     body: `<div class="search">${icon('search')}<input id="ex-q" type="search" placeholder="Buscar ejercicio" value="${esc(p.q)}" data-in="pickQ" autocomplete="off"></div>
-      <div class="chips scroll-x">${[['', 'Todos'], ...Object.entries(MUSCLES)].map(([k, l]) => `<button class="chip ${p.m === k ? 'on' : ''}" data-a="pickM" data-v="${k}">${l}</button>`).join('')}</div>
+      <div class="chips scroll-x">${mineChip()}${[['', 'Todos'], ...Object.entries(MUSCLES)].map(([k, l]) => `<button class="chip ${p.m === k ? 'on' : ''}" data-a="pickM" data-v="${k}">${l}</button>`).join('')}</div>
       <div class="list flush" id="ex-results">${exResults()}</div>
       <button class="btn block ghost" data-a="newCustomEx">${icon('plus')} Crear ejercicio personalizado</button>`,
     foot: single ? '' : `<button class="btn primary block" data-a="pickDone" ${p.sel.length ? '' : 'disabled'}>Añadir${p.sel.length ? ` (${p.sel.length})` : ''}</button>`,
@@ -200,7 +204,7 @@ A.cexSave = () => {
 function libraryTab() {
   ui.lib = ui.lib || { q: '', m: '' };
   return `<div class="search">${icon('search')}<input id="lib-q" type="search" placeholder="Buscar ejercicio" value="${esc(ui.lib.q)}" data-in="libQ" autocomplete="off"></div>
-    <div class="chips scroll-x">${[['', 'Todos'], ...Object.entries(MUSCLES)].map(([k, l]) => `<button class="chip ${ui.lib.m === k ? 'on' : ''}" data-a="libM" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="chips scroll-x">${mineChip()}${[['', 'Todos'], ...Object.entries(MUSCLES)].map(([k, l]) => `<button class="chip ${ui.lib.m === k ? 'on' : ''}" data-a="libM" data-v="${k}">${l}</button>`).join('')}</div>
     <section class="card list flush" id="lib-results">${libResults()}</section>`;
 }
 function libResults() {

@@ -588,3 +588,36 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
   .title { font-size: 34px; }
   .nutri-card { gap: 12px; }
 }
+
+/* ---------- Mi gimnasio y planificador ---------- */
+.eq-group { display: flex; flex-direction: column; gap: 8px; }
+.eq-list { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+.sheet .eq-list { background: var(--surface2); border-color: transparent; }
+.eq { display: flex; align-items: center; gap: 12px; padding: 12px 14px; text-align: left; font-size: 14.5px; font-weight: 600; min-height: 48px; }
+.eq + .eq { border-top: 1px solid var(--line); }
+.eq i { width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--line); display: grid; place-items: center; flex: none; transition: background .15s; }
+.eq.on i { background: var(--accent); border-color: var(--accent); color: #fff; }
+.eq.on i .i { width: 15px; height: 15px; stroke-width: 3.2; }
+.eq:not(.on) span { color: var(--muted); }
+.wd-pick { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.wd-pick button { aspect-ratio: 1; max-height: 48px; border-radius: 12px; background: var(--surface2); border: 2px solid var(--line); font-weight: 800; font-size: 15px; text-align: center; }
+.ob .wd-pick button { background: var(--surface); }
+.wd-pick button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.wd-strip { display: flex; gap: 5px; }
+.wd-strip span { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 12px; font-weight: 800; background: var(--surface2); color: var(--dim); }
+.wd-strip span.on { background: var(--accent-soft); color: var(--accent); }
+.wd.plan:not(.on) i { border-style: dashed; border-color: var(--accent); }
+.gym-row { background: var(--surface2); border-radius: var(--r-md); }
+.prog-prev { gap: 10px; }
+.pp-name { font-size: 16px; }
+.pp-r { border-top: 1px solid var(--line); padding-top: 10px; }
+.pp-r ul, .pp-changes ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; }
+.pp-r li { display: flex; justify-content: space-between; gap: 10px; }
+.pp-r li small { color: var(--muted); white-space: nowrap; }
+.pp-changes { border-top: 1px solid var(--line); padding-top: 10px; }
+.pp-changes li { color: var(--muted); }
+.pp-changes b { color: var(--fg); font-weight: 600; }
+em.na { font-style: normal; color: var(--warn); }
+.hero-card.rest-day { background: var(--surface); }
+.hero-card.rest-day p b { color: var(--fg); }
+.chip .i { flex: none; }

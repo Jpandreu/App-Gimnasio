@@ -6,6 +6,13 @@ import { trainView } from './views/train.js';
 import { workoutView, miniBar } from './views/workout.js';
 import { nutritionView } from './views/nutrition.js';
 import { progressView } from './views/progress.js';
+import './views/gym.js';
+import { DEFAULT_WEEKDAYS } from './data/equipment.js';
+
+// Migración: perfiles creados antes de planificar por días de la semana
+if (S.profile && !S.profile.weekdays) {
+  Object.assign(S.profile, { weekdays: DEFAULT_WEEKDAYS[S.profile.days] || DEFAULT_WEEKDAYS[4], sessionMin: 60, focus: [] });
+}
 
 const TABS = [
   ['hoy', 'Hoy', 'home', todayView],

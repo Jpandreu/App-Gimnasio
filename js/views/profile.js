@@ -1,9 +1,10 @@
 import { S, ui, A, IN, SHEETS, render, commit, save, esc, num, round, fmtNum, dayKey, openSheet, closeSheet, confirmBox, toast, replaceState, resetState } from '../core.js';
 import { targets, ACTIVITY, GOALS, EXPERIENCE, generateProgram, currentWeight } from '../coach.js';
-import { PROGRAMS } from '../data/plans.js';
+import { GYM_PRESETS, DEFAULT_WEEKDAYS } from '../data/equipment.js';
+import { equipPicker, toggleEquip, weekdayPick, toggleDay, daysLabel, timePick, focusPick, toggleFocus, programPreview } from './gym.js';
 import { icon } from '../ui.js';
 
-const draftDefault = () => ({ name: '', sex: 'm', age: 25, weight: 65, height: 180, activity: 1.55, goal: 'volumen', days: 4, exp: 'novato' });
+const draftDefault = () => ({ name: '', sex: 'm', age: 25, weight: 65, height: 180, activity: 1.55, goal: 'volumen', days: 4, exp: 'novato', weekdays: [...DEFAULT_WEEKDAYS[4]], sessionMin: 60, focus: [] });
 
 // ---------- Formulario compartido ----------
 function fields(d) {
@@ -30,10 +31,10 @@ function goalPick(d) {
     <button type="button" class="opt ${d.goal === k ? 'on' : ''}" data-a="draftSet" data-k="goal" data-v="${k}">
       <b>${g.label}</b><span>${g.desc}</span></button>`).join('')}</div>`;
 }
-function daysPick(d) {
-  return `<div class="days-pick">${[3, 4, 5, 6].map(n => `<button type="button" class="${d.days === n ? 'on' : ''}" data-a="draftSet" data-k="days" data-v="${n}" data-num="1"><b>${n}</b><span>días</span></button>`).join('')}</div>
-  <p class="hint">${esc(PROGRAMS[d.days].name)}. ${esc(PROGRAMS[d.days].why)}</p>`;
-}
+A.obDay = (el) => { ui.ob.weekdays = toggleDay(ui.ob.weekdays, num(el.dataset.v)); render(); };
+A.obTime = (el) => { ui.ob.sessionMin = num(el.dataset.v); render(); };
+A.obFocus = (el) => { ui.ob.focus = toggleFocus(ui.ob.focus, el.dataset.v); render(); };
+A.obEquip = (el) => { ui.obEquip = toggleEquip(ui.obEquip, el); render(); };
 
 IN.draft = (el) => { ui.ob[el.dataset.k] = num(el.value); };
 A.draftSet = (el) => { ui.ob[el.dataset.k] = el.dataset.num ? num(el.dataset.v) : el.dataset.v; render(); };
@@ -41,6 +42,7 @@ A.draftSet = (el) => { ui.ob[el.dataset.k] = el.dataset.num ? num(el.dataset.v) 
 // ---------- Onboarding ----------
 export function onboarding() {
   if (!ui.ob) ui.ob = draftDefault();
+  if (!ui.obEquip) ui.obEquip = [...GYM_PRESETS.completo.equip];
   const d = ui.ob, step = ui.obStep || 0;
   const steps = [
     () => `<div class="ob-hero">
@@ -58,9 +60,14 @@ export function onboarding() {
     () => `<h2 class="ob-t">Tus datos</h2><p class="ob-s">Con ellos calculo tu gasto calórico con la fórmula Mifflin-St Jeor.</p>${fields(d)}`,
     () => `<h2 class="ob-t">Actividad diaria</h2><p class="ob-s">Incluye el entreno y lo que te mueves fuera del gimnasio.</p>${activityPick(d)}`,
     () => `<h2 class="ob-t">Objetivo</h2><p class="ob-s">Para ganar masa muscular necesitas comer por encima de lo que gastas.</p>${goalPick(d)}`,
-    () => `<h2 class="ob-t">Entrenamiento</h2><p class="ob-s">¿Cuántos días a la semana puedes ir al gimnasio?</p>${daysPick(d)}
+    () => `<h2 class="ob-t">Entrenamiento</h2><p class="ob-s">¿Qué días de la semana vas a ir al gimnasio?</p>
+      ${weekdayPick(d.weekdays, 'obDay')}<p class="hint">${daysLabel(d.weekdays)}</p>
+      <h3 class="label mt">Tiempo por sesión</h3>${timePick(d.sessionMin, 'obTime')}
       <h3 class="label mt">Experiencia</h3>
-      <div class="seg sm">${Object.entries(EXPERIENCE).map(([k, l]) => `<button type="button" class="${d.exp === k ? 'on' : ''}" data-a="draftSet" data-k="exp" data-v="${k}">${l}</button>`).join('')}</div>`,
+      <div class="seg sm">${Object.entries(EXPERIENCE).map(([k, l]) => `<button type="button" class="${d.exp === k ? 'on' : ''}" data-a="draftSet" data-k="exp" data-v="${k}">${l}</button>`).join('')}</div>
+      <h3 class="label mt">Músculos a priorizar (opcional)</h3>${focusPick(d.focus, 'obFocus')}`,
+    () => `<h2 class="ob-t">Tu gimnasio</h2><p class="ob-s">Marca las máquinas y el material que tienes. Tus rutinas solo usarán ejercicios que puedas hacer.</p>
+      ${equipPicker(ui.obEquip, 'obEquip')}`,
     () => {
       const t = targets({ ...d, kcalAdjust: 0 });
       return `<h2 class="ob-t">Tu plan</h2><p class="ob-s">Esto es lo que necesitas cada día para ${GOALS[d.goal].label.toLowerCase()}.</p>
@@ -73,16 +80,16 @@ export function onboarding() {
         </div>
         ${calcExplain(t)}
       </div>
-      <div class="card"><div class="row-between"><div><div class="label">Programa</div><b>${esc(PROGRAMS[d.days].name)}</b></div>${icon('dumbbell', 'accent-i')}</div>
-      <p class="hint">${PROGRAMS[d.days].routines.map(r => esc(r.name)).join(' · ')}</p></div>`;
+      <h3 class="section-t">Tu programa</h3>
+      ${programPreview(d, ui.obEquip)}`;
     },
   ];
   const last = steps.length - 1;
   return `<div class="ob">
     <div class="ob-top">${step > 0 ? `<button class="icon-btn" data-a="obBack" aria-label="Atrás">${icon('left')}</button>` : '<span></span>'}
       <div class="dots">${steps.map((_, i) => `<i class="${i <= step ? 'on' : ''}"></i>`).join('')}</div><span></span></div>
-    <div class="ob-body" data-scroll="ob">${steps[step]()}</div>
-    <div class="ob-foot"><button class="btn primary block" data-a="${step === last ? 'obFinish' : 'obNext'}">${step === 0 ? 'Empezar' : step === last ? 'Crear mi plan' : 'Continuar'}</button></div>
+    <div class="ob-body" data-scroll="ob-${step}">${steps[step]()}</div>
+    <div class="ob-foot"><button class="btn primary block" data-a="${step === last ? 'obFinish' : 'obNext'}" ${step === 4 && (d.weekdays.length < 2 || d.weekdays.length > 6) ? 'disabled' : ''}>${step === 0 ? 'Empezar' : step === last ? 'Crear mi plan' : 'Continuar'}</button></div>
   </div>`;
 }
 IN.draftText = (el) => { ui.ob[el.dataset.k] = el.value; };
@@ -90,11 +97,12 @@ A.obNext = () => { ui.obStep = (ui.obStep || 0) + 1; render(); };
 A.obBack = () => { ui.obStep = Math.max(0, (ui.obStep || 0) - 1); render(); };
 A.obFinish = () => {
   const d = ui.ob;
-  S.profile = { ...d, kcalAdjust: 0, startWeight: d.weight, createdAt: Date.now() };
+  S.profile = { ...d, days: d.weekdays.length, kcalAdjust: 0, startWeight: d.weight, createdAt: Date.now() };
   S.weights = [{ d: dayKey(), kg: d.weight }];
-  const prog = generateProgram(d.days);
+  S.gym = { equip: [...ui.obEquip] };
+  const prog = generateProgram(d, new Set(ui.obEquip));
   S.programName = prog.name; S.routines = prog.routines;
-  ui.ob = null; ui.obStep = 0; ui.tab = 'hoy';
+  ui.ob = null; ui.obEquip = null; ui.obStep = 0; ui.tab = 'hoy';
   save(true); render();
   toast('Plan creado. ¡A por ello!');
 };
@@ -148,6 +156,8 @@ export function profileView() {
 
     <h3 class="section-t">Entrenamiento</h3>
     <section class="card list">
+      <button class="row" data-a="openGym">${icon('dumbbell')}<span class="grow"><b>Mi gimnasio</b><small>${S.gym?.equip?.length ?? 'Todo el'} ${S.gym ? 'elementos de material' : 'material'}</small></span>${icon('right', 'dim')}</button>
+      <button class="row" data-a="openPlanner">${icon('calendar')}<span class="grow"><b>Días, duración y prioridades</b><small>${(p.weekdays || []).length || p.days} días por semana · ${p.sessionMin || 60} min</small></span>${icon('right', 'dim')}</button>
       ${toggle('autoRest', 'Temporizador de descanso automático', 'Empieza al marcar una serie')}
       ${toggle('sound', 'Sonido al terminar el descanso', '')}
       ${toggle('vibrate', 'Vibración', 'Solo en Android')}
