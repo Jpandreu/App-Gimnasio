@@ -12,6 +12,8 @@ const DEFAULT = () => ({
   customFoods: [],
   customExercises: [],
   gym: null,
+  supps: [],
+  suppLog: {},
   log: {},
   weights: [],
   measures: [],

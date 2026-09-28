@@ -35,6 +35,7 @@ const P = {
   flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   download: '<path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/>',
   upload: '<path d="M12 16V5M7 9.5l5-5 5 5M5 20h14"/>',
+  pill: '<rect x="3.5" y="8.5" width="17" height="7" rx="3.5" transform="rotate(-45 12 12)"/><path d="m9.5 9.5 5 5"/>',
   sparkle: '<path d="M12 3.5 13.8 10.2 20.5 12 13.8 13.8 12 20.5 10.2 13.8 3.5 12 10.2 10.2z"/>',
 };
 

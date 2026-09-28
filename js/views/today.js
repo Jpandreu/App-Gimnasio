@@ -1,6 +1,7 @@
 import { S, ui, A, IN, SHEETS, render, commit, save, esc, num, fmtNum, round, dayKey, addDays, parseDay, fmtDay, fmtMin, openSheet, closeSheet, toast, DOW } from '../core.js';
 import { targets, dayTotals, peekLog, dayLog, nextRoutine, exById, isTrainingDay, nextTrainingDate, weekdayName, trainingOpts, weightTrend, calorieAdvice, tipOfDay, weekSessions, streakWeeks, sessionStats, currentWeight } from '../coach.js';
 import { MUSCLES } from '../data/exercises.js';
+import { suppTodayCard } from './supps.js';
 import { icon, ring, macroBar, sparkline } from '../ui.js';
 
 const LONG_DOW = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -144,6 +145,7 @@ export function todayView() {
     </header>
     ${workoutCard()}
     ${nutritionCard()}
+    ${suppTodayCard()}
     ${weekStrip()}
     ${weightCard()}
     ${waterCard()}

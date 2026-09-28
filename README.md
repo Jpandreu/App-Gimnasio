@@ -23,6 +23,7 @@ Es una **PWA** (aplicación web instalable): se instala en la pantalla de inicio
 - Objetivo de calorías con Mifflin-St Jeor × actividad + superávit. Proteína a 2 g/kg, grasa al 25 % y el resto hidratos.
 - Diario por comidas con una base de más de 100 alimentos habituales en España (valores por 100 g), raciones rápidas, alimentos propios y añadido rápido de kcal.
 - Tres días tipo de comidas que se ajustan automáticamente a tus calorías y macros; cada comida se añade al diario con un toque.
+- **Suplementos**: añade los que tomas (creatina, proteína, cafeína, vitamina D, omega-3…) con dosis, momento y frecuencia. Se marcan cada día desde Hoy, con racha y constancia de las últimas semanas. La proteína en polvo se suma sola al diario de comidas, y el coach tiene en cuenta el agua que retiene la creatina las primeras semanas. Incluye qué funciona según la evidencia y qué no merece la pena.
 - Registro de agua y guía de nutrición para ganar volumen: cómo comer más si te cuesta, el entreno y los suplementos útiles.
 
 **Progreso**

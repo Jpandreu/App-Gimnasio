@@ -70,6 +70,14 @@ export function weightTrend(days = 28) {
   return { perWeek: slope * 7, span, n };
 }
 
+// Días desde que empezó a tomar creatina (retiene 1-2 kg de agua las primeras semanas)
+export function creatineStartedDaysAgo() {
+  const c = (S.supps || []).find(x => x.key === 'creatina');
+  if (!c) return null;
+  const first = Object.keys(S.suppLog || {}).filter(k => S.suppLog[k][c.id]).sort()[0] || c.start;
+  return first ? Math.round((parseDay(dayKey()) - parseDay(first)) / 864e5) : null;
+}
+
 // Ajuste calórico sugerido según la tendencia real de peso
 export function calorieAdvice() {
   const p = S.profile; if (!p) return null;
@@ -79,6 +87,8 @@ export function calorieAdvice() {
   const r = tr.perWeek;
   const rs = `${r >= 0 ? '+' : ''}${fmtNum(r, 2)} kg/semana`, obj = `${fmtNum(g.rate[0], 2)} a ${fmtNum(g.rate[1], 2)} kg`;
   if (r < g.rate[0]) return { state: 'low', delta: 150, rate: r, text: `Tu peso cambia ${rs}, por debajo del objetivo (${obj}). Te recomiendo sumar 150 kcal al día.` };
+  const cr = creatineStartedDaysAgo();
+  if (r > g.rate[1] && cr !== null && cr < 28) return { state: 'ok', rate: r, text: `Tu peso cambia ${rs}, algo por encima del objetivo, pero llevas ${cr} días con creatina: parte es agua dentro del músculo. No toques las calorías hasta la semana 4.` };
   if (r > g.rate[1]) return { state: 'high', delta: -150, rate: r, text: `Tu peso cambia ${rs}, más rápido que el objetivo (${obj}). Resta 150 kcal para ganar menos grasa.` };
   return { state: 'ok', rate: r, text: `Tu peso cambia ${rs}, dentro del rango ideal (${obj}). Mantén las calorías.` };
 }

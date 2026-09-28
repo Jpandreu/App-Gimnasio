@@ -4,6 +4,7 @@ import { FOOD_CATS } from '../data/foods.js';
 import { MEAL_PLANS, MEAL_LABELS, MEAL_ORDER } from '../data/plans.js';
 import { icon, seg, ring, macroBar } from '../ui.js';
 import { waterCard } from './today.js';
+import { suppsTab } from './supps.js';
 
 const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const kcalFmt = v => Math.round(v).toLocaleString('es-ES');
@@ -12,8 +13,8 @@ export function nutritionView() {
   const sub = ui.sub.nutri;
   return `<div class="screen" data-scroll="nutri-${sub}">
     <header class="top"><h1 class="title">Nutrición</h1></header>
-    ${seg('nutriSub', sub, [['diario', 'Diario'], ['plan', 'Plan de comidas'], ['guia', 'Guía']])}
-    ${sub === 'diario' ? diary() : sub === 'plan' ? planTab() : guideTab()}
+    ${seg('nutriSub', sub, [['diario', 'Diario'], ['plan', 'Plan'], ['supps', 'Suplementos'], ['guia', 'Guía']])}
+    ${sub === 'diario' ? diary() : sub === 'plan' ? planTab() : sub === 'supps' ? suppsTab() : guideTab()}
   </div>`;
 }
 A.nutriSub = (el) => { ui.sub.nutri = el.dataset.v; render(); };
@@ -292,7 +293,7 @@ function guideTab() {
       <li><b>Proteína whey:</b> no es imprescindible, pero es una forma cómoda de llegar a tu proteína.</li>
       <li><b>Cafeína:</b> 1-3 mg/kg antes de entrenar si te ayuda a rendir. Evítala por la tarde para no dormir peor.</li>
       <li><b>Gainers:</b> suelen ser azúcar caro. Un batido casero hace lo mismo.</li>
-    </ul></details>
+    </ul><div><button class="btn sm primary soft" data-a="goSupps">${icon('pill')} Gestionar mis suplementos</button></div></details>
 
   <details class="card acc"><summary><b>6. Lista de la compra para volumen</b>${icon('down', 'dim')}</summary>
     <div class="shop">
