@@ -4,6 +4,7 @@ export const FOOD_CATS = {
   proteina: 'Carnes, huevos y embutidos', pescado: 'Pescados y mariscos', lacteo: 'Lácteos', cereal: 'Cereales y tubérculos',
   legumbre: 'Legumbres', fruta: 'Fruta', verdura: 'Verdura', grasa: 'Aceites y grasas', frutoseco: 'Frutos secos y semillas',
   suplemento: 'Suplementos', plato: 'Platos', rapida: 'Comida rápida', panaderia: 'Panadería y bollería',
+  latino: 'Cocina latinoamericana', internacional: 'Cocina internacional',
   salsa: 'Salsas y condimentos', snack: 'Dulces y snacks', bebida: 'Bebidas',
 };
 
@@ -303,8 +304,9 @@ for (const f of FOODS) { if (PESCADO.includes(f.id)) f.cat = 'pescado'; if (FRUT
 
 // Ampliación con los grupos de BEDCA (sin duplicar nombres)
 import { FOODS_ES } from './foods-es.js';
+import { FOODS_WORLD } from './foods-world.js';
 {
   const key = n => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const names = new Set(FOODS.map(f => key(f.name)));
-  for (const f of FOODS_ES) if (!names.has(key(f.name))) { FOODS.push(f); names.add(key(f.name)); }
+  for (const f of [...FOODS_ES, ...FOODS_WORLD]) if (!names.has(key(f.name))) { FOODS.push(f); names.add(key(f.name)); }
 }

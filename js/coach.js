@@ -16,7 +16,8 @@ export const GOALS = {
   volumen: { label: 'Ganar masa', kcal: 450, rate: [0.25, 0.5], desc: 'Superávit de unas 450 kcal. Recomendado si te cuesta subir de peso.' },
   'volumen-limpio': { label: 'Volumen limpio', kcal: 300, rate: [0.15, 0.35], desc: 'Superávit moderado para ganar músculo con poca grasa.' },
   mantener: { label: 'Mantener', kcal: 0, rate: [-0.1, 0.1], desc: 'Recomposición: mismo peso, más músculo.' },
-  definir: { label: 'Definir', kcal: -450, rate: [-0.7, -0.3], desc: 'Déficit para perder grasa conservando músculo.' },
+  definir: { label: 'Definir', kcal: -450, rate: [-0.7, -0.3], desc: 'Perder grasa conservando el músculo: déficit moderado y proteína alta. Para quien ya entrena y tiene un peso normal.' },
+  perder: { label: 'Bajar peso', kcal: tdee => -Math.min(900, Math.max(500, Math.round(tdee * 0.2))), rate: [-1, -0.5], desc: 'Déficit mayor (~20 % de tu gasto) para bajar 0,5-1 kg por semana. Para quien tiene bastante peso que perder.' },
 };
 
 export const EXPERIENCE = {
@@ -44,16 +45,20 @@ export function targets(p = S.profile, day = dayKey()) {
   const b = bmr(pp);
   const tdee = b * p.activity;
   const goal = GOALS[p.goal] || GOALS.volumen;
-  const base = Math.round((tdee + goal.kcal + (p.kcalAdjust || 0)) / 10) * 10;
-  // Cardio del día: sus calorías se suman al objetivo (como hidratos) para no perder el superávit
-  const cardio = p === S.profile && S.settings.cardioEat !== false ? Math.round((S.cardio || []).filter(c => c.d === day).reduce((a, c) => a + (c.kcal || 0), 0) / 10) * 10 : 0;
+  const adj = typeof goal.kcal === 'function' ? goal.kcal(tdee) : goal.kcal;
+  const base = Math.round((tdee + adj + (p.kcalAdjust || 0)) / 10) * 10;
+  // Cardio del día: se suman sus calorías (la mitad si el objetivo es perder peso, para mantener el déficit)
+  const cardioK = (S.cardio || []).filter(c => c.d === day).reduce((a, c) => a + (c.kcal || 0), 0) * (adj < 0 ? 0.5 : 1);
+  const cardio = p === S.profile && S.settings.cardioEat !== false ? Math.round(cardioK / 10) * 10 : 0;
   const kcal = base + cardio;
-  // Proteína 2 g/kg (2,2 en déficit), grasa 25% de las kcal base (mínimo 0,8 g/kg), resto hidratos
-  const protein = Math.round(weight * (p.goal === 'definir' ? 2.2 : 2));
+  // Proteína: 2 g/kg (2,2 al definir). Con obesidad se calcula sobre el peso de un IMC 25 para no inflarla.
+  const h2 = (p.height / 100) ** 2, bmi = weight / h2;
+  const protWeight = bmi > 30 ? 25 * h2 : weight;
+  const protein = Math.round(protWeight * (p.goal === 'definir' ? 2.2 : 2));
   const fat = Math.round(Math.max(weight * 0.8, (base * 0.25) / 9));
   const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
   const water = Math.round((weight * 35 + 500) / 250) * 250; // ml
-  return { bmr: Math.round(b), tdee: Math.round(tdee), surplus: goal.kcal + (p.kcalAdjust || 0), base, cardio, kcal, p: protein, c: carbs, f: fat, water, weight };
+  return { bmr: Math.round(b), tdee: Math.round(tdee), surplus: adj + (p.kcalAdjust || 0), base, bmi, cardio, kcal, p: protein, c: carbs, f: fat, water, weight };
 }
 
 // Tendencia de peso: regresión lineal de los últimos 28 días (kg/semana)
@@ -89,6 +94,9 @@ export function calorieAdvice() {
   if (!tr || tr.span < 13) return { state: 'wait', text: 'Pésate 3-4 mañanas por semana, en ayunas y tras ir al baño. Con 2 semanas de datos ajusto tus calorías.' };
   const r = tr.perWeek;
   const rs = `${r >= 0 ? '+' : ''}${fmtNum(r, 2)} kg/semana`, obj = `${fmtNum(g.rate[0], 2)} a ${fmtNum(g.rate[1], 2)} kg`;
+  const losing = g.rate[1] < 0;
+  if (losing && r < g.rate[0]) return { state: 'low', delta: 150, rate: r, text: `Tu peso cambia ${rs}: bajas más rápido que el objetivo (${obj}). Suma 150 kcal al día para no perder músculo ni energía.` };
+  if (losing && r > g.rate[1]) return { state: 'high', delta: -150, rate: r, text: `Tu peso cambia ${rs}: bajas más despacio que el objetivo (${obj}). Resta 150 kcal al día o añade algo de cardio.` };
   if (r < g.rate[0]) return { state: 'low', delta: 150, rate: r, text: `Tu peso cambia ${rs}, por debajo del objetivo (${obj}). Te recomiendo sumar 150 kcal al día.` };
   const cr = creatineStartedDaysAgo();
   if (r > g.rate[1] && cr !== null && cr < 28) return { state: 'ok', rate: r, text: `Tu peso cambia ${rs}, algo por encima del objetivo, pero llevas ${cr} días con creatina: parte es agua dentro del músculo. No toques las calorías hasta la semana 4.` };
@@ -98,7 +106,10 @@ export function calorieAdvice() {
 
 // ---------- Nutrición ----------
 export const allFoods = () => [...S.customFoods, ...FOODS];
-export const foodById = id => S.customFoods.find(f => f.id === id) || FOODS.find(f => f.id === id);
+// Productos encontrados en internet durante la sesión (se guardan en Mis alimentos al usarlos)
+export const OFF_CACHE = new Map();
+const FOOD_INDEX = new Map(FOODS.map(f => [f.id, f]));
+export const foodById = id => S.customFoods.find(f => f.id === id) || FOOD_INDEX.get(id) || OFF_CACHE.get(id);
 
 export function macrosFor(food, g) {
   const k = g / 100;

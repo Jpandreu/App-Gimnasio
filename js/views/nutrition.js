@@ -1,15 +1,24 @@
 import { S, ui, A, IN, SHEETS, render, commit, save, esc, num, uid, fmtNum, round, dayKey, addDays, fmtDay, openSheet, closeSheet, replaceSheet, toast } from '../core.js';
-import { targets, dayTotals, dayLog, peekLog, allFoods, foodById, macrosFor, makeLogItem, scalePlan } from '../coach.js';
+import { GOALS, targets, dayTotals, dayLog, peekLog, allFoods, foodById, macrosFor, makeLogItem, scalePlan } from '../coach.js';
 import { FOOD_CATS } from '../data/foods.js';
 import { MEAL_PLANS, MEAL_LABELS, MEAL_ORDER } from '../data/plans.js';
 import { icon, seg, ring, macroBar } from '../ui.js';
 import { waterCard } from './today.js';
 import { suppsTab } from './supps.js';
 import { foodEmoji, MEAL_EMOJI, DISH_EMOJI, CAT_EMOJI } from '../data/emoji.js';
+import { SYNONYMS } from '../data/foods-world.js';
+import { onlineBlock, persistOnline } from './online.js';
 import { dishMatches, dishGrid, editDishItem, savedMealsList, isFav, addRecipeIngredient } from './meals.js';
 
 const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const itemEmoji = it => it.dish ? DISH_EMOJI[it.dish.id] || '🍽️' : it.fid && foodById(it.fid) ? foodEmoji(foodById(it.fid)) : '⚡';
+const SYN = SYNONYMS.map(g => g.map(norm));
+function expandWord(w) {
+  const out = new Set([w]);
+  // Coincidencia exacta, plural (papas → papa) o palabra empezada (frij → frijol)
+  for (const g of SYN) if (g.some(t => t === w || (w.length >= 4 && (t.startsWith(w) || (w.startsWith(t) && w.length - t.length <= 2))))) g.forEach(t => out.add(t));
+  return [...out];
+}
 const kcalFmt = v => Math.round(v).toLocaleString('es-ES');
 
 export function nutritionView() {
@@ -81,10 +90,12 @@ function foodResults() {
   const recipeMode = ui.fs.mode === 'recipe';
   let list, top = '';
   if (q.trim()) {
-    const words = norm(q).split(/\s+/).filter(Boolean);
+    const words = norm(q).split(/\s+/).filter(w => w.length > 1 || /\d/.test(w));
     const nq = norm(q.trim());
-    const score = f => { const n = norm(f.name); return (isFav(f.id) ? -1 : 0) + (n.startsWith(nq) ? 0 : n.split(/\s+/).some(w => w.startsWith(words[0])) ? 1 : 2); };
-    list = allFoods().filter(f => words.every(w => norm(f.name).includes(w))).sort((a, b) => score(a) - score(b));
+    // Cada palabra vale también con sus sinónimos (papa = patata, frijol = alubia…)
+    const alts = words.map(expandWord);
+    const score = f => { const n = norm(f.name); return (isFav(f.id) ? -1 : 0) + (n.startsWith(nq) ? 0 : alts[0].some(a => n.startsWith(a)) ? 0.5 : n.split(/[\s/(),·-]+/).some(w => alts[0].some(a => w.startsWith(a))) ? 1 : 2); };
+    list = allFoods().filter(f => { const n = norm(f.name); return alts.every(a => a.some(x => n.includes(x))); }).sort((a, b) => score(a) - score(b) || a.name.length - b.name.length);
     if (!recipeMode) {
       const ds = dishMatches(q);
       if (ds.length) top += `<h3 class="section-t">Montar a tu gusto</h3>${ds.map(d => `<button class="row food-pick dish-row" data-a="openDish" data-id="${d.id}"><span class="emo">${DISH_EMOJI[d.id] || '🍽️'}</span><span class="grow"><b>${esc(d.name)}</b><small class="muted">Elige ingredientes, extras y salsas</small></span>${icon('right', 'dim')}</button>`).join('')}`;
@@ -107,8 +118,9 @@ function foodResults() {
     list = S.customFoods;
     if (!list.length) return `<p class="muted center pad">Crea tus alimentos con los datos de la etiqueta o tus recetas por ingredientes.</p>`;
   } else list = allFoods().filter(f => f.cat === cat);
-  if (!list.length && !top) return `<p class="muted center pad">Sin resultados para "${esc(q)}". Puedes crearlo.</p>`;
-  return top + list.slice(0, 80).map(foodRow).join('');
+  const online = q.trim() ? onlineBlock() : '';
+  if (!list.length && !top) return `<p class="muted center pad">Sin resultados para "${esc(q)}" en la app.</p>${online}`;
+  return top + list.slice(0, 80).map(foodRow).join('') + online;
 }
 SHEETS.foodSearch = () => {
   const recipeMode = ui.fs.mode === 'recipe';
@@ -118,7 +130,7 @@ SHEETS.foodSearch = () => {
     title: recipeMode ? 'Añadir ingrediente' : `Añadir a ${MEAL_LABELS[ui.fs.meal].toLowerCase()}`, full: true,
     body: `<div class="search">${icon('search')}<input id="food-q${recipeMode ? '-r' : ''}" type="search" placeholder="${recipeMode ? 'Buscar ingrediente' : 'Buscar: pollo, hamburguesa, pizza…'}" value="${esc(ui.fs.q)}" data-in="foodQ" autocomplete="off"></div>
     <div class="chips scroll-x">${chips.map(([k, l]) => `<button class="chip ${ui.fs.cat === k && !ui.fs.q ? 'on' : ''}" data-a="foodCat" data-v="${k}">${k === 'platos' ? '👨‍🍳 ' : k === 'favoritos' ? '⭐ ' : k === 'recientes' ? '🕒 ' : k === 'guardadas' ? '📌 ' : k === 'mios' ? '📝 ' : CAT_EMOJI[k] ? CAT_EMOJI[k] + ' ' : ''}${l}</button>`).join('')}</div>
-    ${recipeMode ? '' : `<div class="btn-row"><button class="btn sm ghost" data-a="quickAdd">${icon('bolt')} Kcal rápidas</button><button class="btn sm ghost" data-a="newFood">${icon('plus')} Alimento</button><button class="btn sm ghost" data-a="newRecipe">${icon('chef')} Receta</button></div>`}
+    ${recipeMode ? '' : `<div class="tool-row"><button class="btn sm ghost" data-a="quickAdd">${icon('bolt')} Kcal rápidas</button><button class="btn sm ghost" data-a="newFood">${icon('plus')} Alimento</button><button class="btn sm ghost" data-a="newRecipe">${icon('chef')} Receta</button><button class="btn sm ghost" data-a="offBarcode">▮▯▮ Código</button></div>`}
     <div class="list flush" id="food-results${recipeMode ? '-r' : ''}">${foodResults()}</div>`,
   };
 };
@@ -139,7 +151,7 @@ function amountPreview() {
 }
 SHEETS.foodAmount = () => {
   const fa = ui.fa, f = foodById(fa.fid);
-  const custom = f.id.startsWith('u-') || f.id.startsWith('r-');
+  const custom = (f.id.startsWith('u-') || f.id.startsWith('r-') || f.id.startsWith('off-')) && S.customFoods.some(x => x.id === f.id);
   const serv = f.s?.length ? f.s.flatMap(([l, g], si) => (si ? [1, 2] : [0.5, 1, 1.5, 2, 3]).map(n =>
     `<button class="chip" data-a="gSet" data-v="${round(g * n, 1)}">${n !== 1 ? `${String(n).replace('.', ',')} × ` : ''}${esc(l)} <em>${round(g * n, 1)} g</em></button>`)).join('') : '';
   return {
@@ -168,6 +180,7 @@ A.faMeal = (el) => { ui.fa.meal = el.dataset.v; render(); };
 A.saveAmount = () => {
   const fa = ui.fa, f = foodById(fa.fid);
   if (!(fa.g > 0)) { toast('Indica una cantidad'); return; }
+  persistOnline(f);
   if (fa.recipe) { addRecipeIngredient(f, fa.g); return; }
   const log = dayLog(ui.day || dayKey());
   if (fa.editId) {
@@ -289,18 +302,19 @@ A.planAdd = (el) => { addPlanMeals(el.dataset.id, +el.dataset.mi); commit(); toa
 A.planAddAll = (el) => { addPlanMeals(el.dataset.id); commit(); toast('Día completo añadido a hoy'); };
 
 // ---------- Guía ----------
+const rateTxt = () => { const r = (GOALS[S.profile.goal] || GOALS.volumen).rate; const f = v => `${v > 0 ? '+' : ''}${fmtNum(v, 2)}`; return `${f(r[0])} a ${f(r[1])}`; };
 function guideTab() {
   const t = targets(), w = t.weight;
   const perMeal = Math.round(t.p / 4);
   return `
   <section class="card guide-hero">
-    <div class="label">Tu fórmula para ganar masa</div>
+    <div class="label">Tu fórmula · ${GOALS[S.profile.goal]?.label || 'Ganar masa'}</div>
     <div class="formula">
       <div><b class="num">${kcalFmt(t.kcal)}</b><span>kcal/día</span></div>
       <div class="m-p"><b class="num">${t.p} g</b><span>proteína</span></div>
-      <div><b class="num">+${fmtNum(w * 0.004, 1)}-${fmtNum(w * 0.007, 1)}</b><span>kg por semana</span></div>
+      <div><b class="num">${rateTxt()}</b><span>kg por semana</span></div>
     </div>
-    <p class="hint">Ganar entre el 0,4 y el 0,7% de tu peso por semana maximiza el músculo y limita la grasa.</p>
+    <p class="hint">${{ volumen: 'Ganar entre el 0,4 y el 0,7% de tu peso por semana maximiza el músculo y limita la grasa.', 'volumen-limpio': 'Subir despacio minimiza la grasa ganada mientras construyes músculo.', mantener: 'Mismo peso: con entreno y proteína alta cambias grasa por músculo.', definir: 'Bajar despacio y con proteína alta protege el músculo mientras pierdes grasa.', perder: 'Bajar entre 0,5 y 1 kg por semana es sostenible. Mantén las pesas para no perder músculo.' }[S.profile.goal] || ''}</p>
   </section>
 
   <details class="card acc" open><summary><b>1. Come más de lo que gastas</b>${icon('down', 'dim')}</summary>

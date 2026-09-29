@@ -27,9 +27,16 @@ function activityPick(d) {
       <b>${a.label}</b><span>${a.desc}</span></button>`).join('')}</div>`;
 }
 function goalPick(d) {
+  const bmi = d.weight && d.height ? d.weight / (d.height / 100) ** 2 : 22;
+  const warn = k => {
+    if ((k === 'perder' || k === 'definir') && bmi < 20.5) return `Tu IMC es ${bmi.toFixed(1).replace('.', ',')}, ya bajo: no se recomienda perder peso.`;
+    if (k === 'perder' && bmi < 25) return `Con un IMC de ${bmi.toFixed(1).replace('.', ',')} suele ser mejor "Definir": pierdes grasa sin perder músculo.`;
+    if (k === 'volumen' && bmi > 27) return 'Con tu IMC, mejor "Volumen limpio" o "Definir" primero.';
+    return '';
+  };
   return `<div class="opts">${Object.entries(GOALS).map(([k, g]) => `
     <button type="button" class="opt ${d.goal === k ? 'on' : ''}" data-a="draftSet" data-k="goal" data-v="${k}">
-      <b>${g.label}</b><span>${g.desc}</span></button>`).join('')}</div>`;
+      <b>${g.label}</b><span>${g.desc}</span>${warn(k) ? `<em class="opt-warn">⚠️ ${warn(k)}</em>` : ''}</button>`).join('')}</div>`;
 }
 A.obDay = (el) => { ui.ob.weekdays = toggleDay(ui.ob.weekdays, num(el.dataset.v)); render(); };
 A.obTime = (el) => { ui.ob.sessionMin = num(el.dataset.v); render(); };
