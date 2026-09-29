@@ -5,9 +5,11 @@ import { MEAL_PLANS, MEAL_LABELS, MEAL_ORDER } from '../data/plans.js';
 import { icon, seg, ring, macroBar } from '../ui.js';
 import { waterCard } from './today.js';
 import { suppsTab } from './supps.js';
+import { foodEmoji, MEAL_EMOJI, DISH_EMOJI, CAT_EMOJI } from '../data/emoji.js';
 import { dishMatches, dishGrid, editDishItem, savedMealsList, isFav, addRecipeIngredient } from './meals.js';
 
 const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const itemEmoji = it => it.dish ? DISH_EMOJI[it.dish.id] || '🍽️' : it.fid && foodById(it.fid) ? foodEmoji(foodById(it.fid)) : '⚡';
 const kcalFmt = v => Math.round(v).toLocaleString('es-ES');
 
 export function nutritionView() {
@@ -23,7 +25,7 @@ A.nutriSub = (el) => { ui.sub.nutri = el.dataset.v; render(); };
 // ---------- Diario ----------
 function diary() {
   const k = ui.day || dayKey();
-  const t = targets(), tot = dayTotals(k), log = peekLog(k);
+  const t = targets(S.profile, k), tot = dayTotals(k), log = peekLog(k);
   const left = t.kcal - tot.kcal;
   const isToday = k === dayKey();
   return `
@@ -40,17 +42,18 @@ function diary() {
       ${macroBar('Proteína', tot.p, t.p, 'm-p')}${macroBar('Hidratos', tot.c, t.c, 'm-c')}${macroBar('Grasa', tot.f, t.f, 'm-f')}
     </div>
   </section>
+  ${t.cardio ? `<p class="hint cardio-note">🏃 Tu objetivo incluye +${t.cardio} kcal por el cardio de este día.</p>` : ''}
   ${!log.items.length && peekLog(addDays(k, -1)).items.length ? `<button class="btn block ghost" data-a="copyDay">${icon('copy')} Copiar comidas del día anterior</button>` : ''}
   ${MEAL_ORDER.map(m => {
     const items = log.items.filter(i => i.meal === m);
     if (m === 'extra' && !items.length) return '';
     const mk = items.reduce((a, i) => a + i.kcal, 0), mp = items.reduce((a, i) => a + i.p, 0);
     return `<section class="card meal">
-      <div class="meal-head"><div class="grow"><b>${MEAL_LABELS[m]}</b>${items.length ? `<small class="muted num">${kcalFmt(mk)} kcal · ${Math.round(mp)} g proteína</small>` : ''}</div>
+      <div class="meal-head"><span class="meal-emo" aria-hidden="true">${MEAL_EMOJI[m]}</span><div class="grow"><b>${MEAL_LABELS[m]}</b>${items.length ? `<small class="muted num">${kcalFmt(mk)} kcal · ${Math.round(mp)} g proteína</small>` : ''}</div>
         <button class="icon-btn sm" data-a="mealMenu" data-meal="${m}" aria-label="Opciones de ${MEAL_LABELS[m]}">${icon('more')}</button>
         <button class="add-btn" data-a="addFood" data-meal="${m}" aria-label="Añadir a ${MEAL_LABELS[m]}">${icon('plus')}</button></div>
       ${items.map(it => `<button class="food-row" data-a="editItem" data-id="${it.id}">
-        <span class="grow"><b>${it.dish ? `${icon('chef', 'dish-i')} ` : ''}${esc(it.name)}</b><small class="muted">${it.g ? `${fmtNum(it.g, 0)} g · ` : ''}P ${Math.round(it.p)} · H ${Math.round(it.c)} · G ${Math.round(it.f)}</small></span>
+        <span class="emo" aria-hidden="true">${itemEmoji(it)}</span><span class="grow"><b>${esc(it.name)}</b><small class="muted">${it.g ? `${fmtNum(it.g, 0)} g · ` : ''}P ${Math.round(it.p)} · H ${Math.round(it.c)} · G ${Math.round(it.f)}</small></span>
         <span class="num kc">${kcalFmt(it.kcal)}</span></button>`).join('')}
     </section>`;
   }).join('')}
@@ -70,7 +73,7 @@ A.addFood = (el) => { ui.fs = { meal: el.dataset.meal, q: '', cat: 'recientes' }
 const foodRow = f => {
   const sv = f.s?.[0];
   const info = sv ? `${esc(sv[0])} (${sv[1]} g) · ${Math.round(f.kcal * sv[1] / 100)} kcal` : `100 g · ${Math.round(f.kcal)} kcal`;
-  return `<button class="row food-pick" data-a="pickFood" data-id="${f.id}">
+  return `<button class="row food-pick" data-a="pickFood" data-id="${f.id}"><span class="emo" aria-hidden="true">${foodEmoji(f)}</span>
     <span class="grow"><b>${isFav(f.id) ? `${icon('star', 'fav-i')} ` : ''}${esc(f.name)}</b><small class="muted">${info} · P ${fmtNum(f.p * (sv ? sv[1] : 100) / 100, 1)} g</small></span>${icon('plus', 'dim')}</button>`;
 };
 function foodResults() {
@@ -84,7 +87,7 @@ function foodResults() {
     list = allFoods().filter(f => words.every(w => norm(f.name).includes(w))).sort((a, b) => score(a) - score(b));
     if (!recipeMode) {
       const ds = dishMatches(q);
-      if (ds.length) top += `<h3 class="section-t">Montar a tu gusto</h3>${ds.map(d => `<button class="row food-pick dish-row" data-a="openDish" data-id="${d.id}">${icon('chef', 'dish-i')}<span class="grow"><b>${esc(d.name)}</b><small class="muted">Elige ingredientes, extras y salsas</small></span>${icon('right', 'dim')}</button>`).join('')}`;
+      if (ds.length) top += `<h3 class="section-t">Montar a tu gusto</h3>${ds.map(d => `<button class="row food-pick dish-row" data-a="openDish" data-id="${d.id}"><span class="emo">${DISH_EMOJI[d.id] || '🍽️'}</span><span class="grow"><b>${esc(d.name)}</b><small class="muted">Elige ingredientes, extras y salsas</small></span>${icon('right', 'dim')}</button>`).join('')}`;
       const sm = savedMealsList(q);
       if (sm) top += `<h3 class="section-t">Mis comidas</h3>${sm}`;
       if (top && list.length) top += `<h3 class="section-t">Alimentos</h3>`;
@@ -114,7 +117,7 @@ SHEETS.foodSearch = () => {
   return {
     title: recipeMode ? 'Añadir ingrediente' : `Añadir a ${MEAL_LABELS[ui.fs.meal].toLowerCase()}`, full: true,
     body: `<div class="search">${icon('search')}<input id="food-q${recipeMode ? '-r' : ''}" type="search" placeholder="${recipeMode ? 'Buscar ingrediente' : 'Buscar: pollo, hamburguesa, pizza…'}" value="${esc(ui.fs.q)}" data-in="foodQ" autocomplete="off"></div>
-    <div class="chips scroll-x">${chips.map(([k, l]) => `<button class="chip ${ui.fs.cat === k && !ui.fs.q ? 'on' : ''}" data-a="foodCat" data-v="${k}">${k === 'platos' ? icon('chef') + ' ' : k === 'favoritos' ? icon('star') + ' ' : ''}${l}</button>`).join('')}</div>
+    <div class="chips scroll-x">${chips.map(([k, l]) => `<button class="chip ${ui.fs.cat === k && !ui.fs.q ? 'on' : ''}" data-a="foodCat" data-v="${k}">${k === 'platos' ? '👨‍🍳 ' : k === 'favoritos' ? '⭐ ' : k === 'recientes' ? '🕒 ' : k === 'guardadas' ? '📌 ' : k === 'mios' ? '📝 ' : CAT_EMOJI[k] ? CAT_EMOJI[k] + ' ' : ''}${l}</button>`).join('')}</div>
     ${recipeMode ? '' : `<div class="btn-row"><button class="btn sm ghost" data-a="quickAdd">${icon('bolt')} Kcal rápidas</button><button class="btn sm ghost" data-a="newFood">${icon('plus')} Alimento</button><button class="btn sm ghost" data-a="newRecipe">${icon('chef')} Receta</button></div>`}
     <div class="list flush" id="food-results${recipeMode ? '-r' : ''}">${foodResults()}</div>`,
   };
@@ -140,7 +143,7 @@ SHEETS.foodAmount = () => {
   const serv = f.s?.length ? f.s.flatMap(([l, g], si) => (si ? [1, 2] : [0.5, 1, 1.5, 2, 3]).map(n =>
     `<button class="chip" data-a="gSet" data-v="${round(g * n, 1)}">${n !== 1 ? `${String(n).replace('.', ',')} × ` : ''}${esc(l)} <em>${round(g * n, 1)} g</em></button>`)).join('') : '';
   return {
-    title: f.name,
+    title: `${foodEmoji(f)} ${f.name}`,
     body: `<div id="amount-prev" class="amount-prev">${amountPreview()}</div>
       <div class="field"><span>Cantidad</span>
         <div class="grams-row">
@@ -265,7 +268,7 @@ function planTab() {
       ${open ? `${meals.map((m, mi) => `<div class="plan-meal">
           <div class="row-between"><div><span class="label">${MEAL_LABELS[m.meal]}</span><b>${esc(m.name)}</b></div>
             <button class="btn sm ghost" data-a="planAdd" data-id="${plan.id}" data-mi="${mi}">${icon('plus')} Añadir</button></div>
-          <ul class="plan-items">${m.items.map(it => `<li><span>${esc(it.food.name)}</span><span class="num">${it.food.id === 'huevo' ? `${Math.round(it.g / 55)} ud.` : `${it.g} g`}</span></li>`).join('')}</ul>
+          <ul class="plan-items">${m.items.map(it => `<li><span>${foodEmoji(it.food)} ${esc(it.food.name)}</span><span class="num">${it.food.id === 'huevo' ? `${Math.round(it.g / 55)} ud.` : `${it.g} g`}</span></li>`).join('')}</ul>
           <small class="muted num">${kcalFmt(m.tot.kcal)} kcal · P ${Math.round(m.tot.p)} · H ${Math.round(m.tot.c)} · G ${Math.round(m.tot.f)}</small>
         </div>`).join('')}
         <button class="btn block primary soft" data-a="planAddAll" data-id="${plan.id}">Añadir el día completo a hoy</button>` : ''}

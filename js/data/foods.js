@@ -1,8 +1,8 @@
 // Base de alimentos. Valores por 100 g (o 100 ml), hidratos sin fibra como en el etiquetado europeo.
 // Fuentes de referencia: BEDCA y USDA FoodData Central, redondeados.
 export const FOOD_CATS = {
-  proteina: 'Carnes, pescados y huevos', lacteo: 'Lácteos', cereal: 'Cereales y tubérculos',
-  legumbre: 'Legumbres', fruta: 'Fruta', verdura: 'Verdura', grasa: 'Grasas y frutos secos',
+  proteina: 'Carnes, huevos y embutidos', pescado: 'Pescados y mariscos', lacteo: 'Lácteos', cereal: 'Cereales y tubérculos',
+  legumbre: 'Legumbres', fruta: 'Fruta', verdura: 'Verdura', grasa: 'Aceites y grasas', frutoseco: 'Frutos secos y semillas',
   suplemento: 'Suplementos', plato: 'Platos', rapida: 'Comida rápida', panaderia: 'Panadería y bollería',
   salsa: 'Salsas y condimentos', snack: 'Dulces y snacks', bebida: 'Bebidas',
 };
@@ -295,3 +295,16 @@ FOODS.push(
   F('batido-proteina-rtd', 'Batido de proteína listo para beber', 'bebida', 60, 7.5, 4.5, 1.2, [['Botella', 330]]),
   F('cerveza-sin', 'Cerveza sin alcohol', 'bebida', 22, 0.4, 4.8, 0, [['Tercio', 330]]),
 );
+
+// Pescados y frutos secos en sus propias categorías
+const PESCADO = ['salmon', 'atun-natural', 'atun-aceite', 'merluza', 'gambas', 'sardinas-lata', 'atun-fresco', 'bacalao', 'dorada', 'salmon-ahumado', 'calamares', 'mejillones', 'surimi'];
+const FRUTOSECO = ['crema-cacahuete', 'almendras', 'nueces', 'cacahuetes', 'anacardos'];
+for (const f of FOODS) { if (PESCADO.includes(f.id)) f.cat = 'pescado'; if (FRUTOSECO.includes(f.id)) f.cat = 'frutoseco'; }
+
+// Ampliación con los grupos de BEDCA (sin duplicar nombres)
+import { FOODS_ES } from './foods-es.js';
+{
+  const key = n => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const names = new Set(FOODS.map(f => key(f.name)));
+  for (const f of FOODS_ES) if (!names.has(key(f.name))) { FOODS.push(f); names.add(key(f.name)); }
+}

@@ -161,6 +161,7 @@ export function profileView() {
       ${toggle('autoRest', 'Temporizador de descanso automático', 'Empieza al marcar una serie')}
       ${toggle('sound', 'Sonido al terminar el descanso', '')}
       ${toggle('vibrate', 'Vibración', 'Solo en Android')}
+      ${toggle('cardioEat', 'Sumar el cardio a mis calorías', 'Las kcal que gastas se añaden a tu objetivo del día')}
     </section>
 
     <h3 class="section-t">Tus datos</h3>

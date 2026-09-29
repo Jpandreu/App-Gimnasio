@@ -11,6 +11,8 @@ Es una **PWA** (aplicación web instalable): se instala en la pantalla de inicio
 - **Planificador**: eliges qué días de la semana vas (2 a 6), cuánto dura cada sesión (45-90 min), tu experiencia y hasta dos músculos a priorizar.
 - **Estilo de rutina**: *Recomendado* (cada músculo 2 veces por semana), *Push/Pull/Legs* o *Por grupo muscular*. En este último eliges cuántos días del ciclo dedicas a pecho, espalda, pierna, hombro y brazos. La app propone un reparto según tus días, integra bíceps y tríceps con espalda y pecho si no hay día de brazos y avisa si un grupo se entrena menos de 2 veces por semana.
 - La vista previa muestra las series semanales por músculo frente a la zona óptima (10-20), y el generador limita el volumen para no pasarse. La app genera el programa con vista previa: Full body (2-3 días), Torso/Pierna (4), Torso/Pierna + PPL (5) o Push/Pull/Legs (6).
+- **Plan de abdominales**: bloque de ~10 min al final de 2, 3 o todos los entrenos, rotando 3 variantes. Prioridad para tantos músculos como quieras (incluidos abdomen, glúteo y gemelos).
+- **Cardio**: caminar, correr, cinta, bici, elíptica, natación, senderismo, remo, comba, HIIT… Registro manual o en directo con cronómetro y GPS (con la app abierta). Km por semana con objetivo, ritmo, récords, historial y calorías gastadas, que se suman a tu objetivo del día.
 - La pantalla Hoy sabe si te toca entrenar o descansar, y la semana marca tus días planificados.
 - Crea y edita rutinas: series, rango de repeticiones y descanso por ejercicio.
 - Biblioteca de 76 ejercicios con indicaciones técnicas, filtro "solo mi gimnasio" y ejercicios propios. Al cambiar un ejercicio durante el entreno te propone alternativas.
@@ -21,7 +23,7 @@ Es una **PWA** (aplicación web instalable): se instala en la pantalla de inicio
 
 **Nutrición**
 - Objetivo de calorías con Mifflin-St Jeor × actividad + superávit. Proteína a 2 g/kg, grasa al 25 % y el resto hidratos.
-- Diario por comidas con **239 alimentos**: básicos, platos españoles, comida rápida, bollería, embutidos, salsas y bebidas. Se muestran las kcal por ración habitual y se pueden elegir ½, 1, 1½, 2 o 3 raciones.
+- Diario por comidas con **624 alimentos** con emoticono, organizados según los grupos de la Base de Datos Española de Composición de Alimentos (BEDCA): lácteos, huevos, carnes, embutidos, pescados y mariscos, cereales, legumbres, frutos secos, verduras, frutas, grasas, dulces, bebidas, platos tradicionales y comida rápida. Se muestran las kcal por ración habitual y se pueden elegir ½, 1, 1½, 2 o 3 raciones.
 - **Platos personalizables** (14): hamburguesa, pizza, bocadillo, tostadas, huevos, ensalada, pasta, arroz, kebab, burrito, poke, porridge, batido y café. Eliges pan, carne, queso, extras, salsas, acompañamiento y bebida, y las calorías se calculan con cada ingrediente. Se pueden volver a editar después.
 - **Mis comidas**: guarda una comida entera (p. ej. tu desayuno habitual) y añádela con un toque. Cada comida del diario tiene un menú para copiarla de ayer, guardarla o vaciarla.
 - **Recetas propias** por ingredientes y raciones, alimentos propios con los datos de la etiqueta, **favoritos** y añadido rápido de kcal.

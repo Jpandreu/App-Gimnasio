@@ -1,7 +1,7 @@
 // Lógica de entrenador y nutricionista.
-import { S, dayKey, addDays, parseDay, round, uid, fmtNum } from './core.js';
+import { S, dayKey, addDays, parseDay, round, uid, fmtNum, num } from './core.js';
 import { EX_BY_ID, EXERCISES } from './data/exercises.js';
-import { GYM_PRESETS, FOCUS, DEFAULT_WEEKDAYS, WEEKDAYS } from './data/equipment.js';
+import { GYM_PRESETS, FOCUS, DEFAULT_WEEKDAYS, WEEKDAYS, ABS_BLOCKS } from './data/equipment.js';
 import { FOODS } from './data/foods.js';
 import { baseProgram, cycleLength, recommendedSplit } from './data/splits.js';
 
@@ -36,7 +36,7 @@ export function currentWeight() {
   return w.length ? w[w.length - 1].kg : (S.profile?.weight || 70);
 }
 
-export function targets(p = S.profile) {
+export function targets(p = S.profile, day = dayKey()) {
   if (!p) return null;
   // En el perfil guardado manda el último peso registrado; en el onboarding, el peso introducido
   const weight = p === S.profile && S.weights.length ? currentWeight() : p.weight;
@@ -44,13 +44,16 @@ export function targets(p = S.profile) {
   const b = bmr(pp);
   const tdee = b * p.activity;
   const goal = GOALS[p.goal] || GOALS.volumen;
-  const kcal = Math.round((tdee + goal.kcal + (p.kcalAdjust || 0)) / 10) * 10;
-  // Proteína 2 g/kg (2,2 en déficit), grasa 25% de las kcal (mínimo 0,8 g/kg), resto hidratos
+  const base = Math.round((tdee + goal.kcal + (p.kcalAdjust || 0)) / 10) * 10;
+  // Cardio del día: sus calorías se suman al objetivo (como hidratos) para no perder el superávit
+  const cardio = p === S.profile && S.settings.cardioEat !== false ? Math.round((S.cardio || []).filter(c => c.d === day).reduce((a, c) => a + (c.kcal || 0), 0) / 10) * 10 : 0;
+  const kcal = base + cardio;
+  // Proteína 2 g/kg (2,2 en déficit), grasa 25% de las kcal base (mínimo 0,8 g/kg), resto hidratos
   const protein = Math.round(weight * (p.goal === 'definir' ? 2.2 : 2));
-  const fat = Math.round(Math.max(weight * 0.8, (kcal * 0.25) / 9));
+  const fat = Math.round(Math.max(weight * 0.8, (base * 0.25) / 9));
   const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
   const water = Math.round((weight * 35 + 500) / 250) * 250; // ml
-  return { bmr: Math.round(b), tdee: Math.round(tdee), surplus: goal.kcal + (p.kcalAdjust || 0), kcal, p: protein, c: carbs, f: fat, water, weight };
+  return { bmr: Math.round(b), tdee: Math.round(tdee), surplus: goal.kcal + (p.kcalAdjust || 0), base, cardio, kcal, p: protein, c: carbs, f: fat, water, weight };
 }
 
 // Tendencia de peso: regresión lineal de los últimos 28 días (kg/semana)
@@ -194,7 +197,7 @@ export function trainingOpts(p = S.profile) {
   const weekdays = p?.weekdays?.length ? p.weekdays : DEFAULT_WEEKDAYS[p?.days || 4];
   return {
     weekdays, sessionMin: p?.sessionMin || 60, focus: p?.focus || [], exp: p?.exp || 'novato',
-    style: p?.style || 'auto', split: p?.split || recommendedSplit(weekdays.length),
+    style: p?.style || 'auto', split: p?.split || recommendedSplit(weekdays.length), abs: p?.abs || 'no',
   };
 }
 
@@ -257,8 +260,28 @@ export function generateProgram(opts = trainingOpts(), equip = gymEquip()) {
     }
     return { id: uid(), name: r.name, exercises: items };
   });
-  // Tope de volumen semanal por músculo: más de ~20 series directas apenas suma y cuesta recuperar
   const k = opts.weekdays.length / Math.max(1, cycleLength(opts));
+  // Plan de abdominales: bloque de ~10 min al final de los entrenos elegidos, repartidos en el ciclo
+  if (opts.abs && opts.abs !== 'no' && routines.length) {
+    const R = routines.length;
+    const n = opts.abs === 'all' ? R : Math.max(1, Math.min(R, Math.round(num(opts.abs) / k)));
+    const pick = new Set(Array.from({ length: n }, (_, i) => Math.floor((i * R) / n + R / n / 2) % R));
+    let b = 0;
+    routines.forEach((r, ri) => {
+      // El plan sustituye a los ejercicios de abdomen que traiga la rutina
+      r.exercises = r.exercises.filter(e => exById(e.exId).m !== 'abdomen');
+      if (!pick.has(ri)) return;
+      const block = ABS_BLOCKS[b++ % ABS_BLOCKS.length];
+      const used = new Set([...r.exercises.map(e => e.exId), ...block.map(x => x[0]).filter(id => canDo(exById(id), equip))]);
+      for (const [exId, sets, min, max, rest] of block) {
+        const id = canDo(exById(exId), equip) ? exId : alternatives(exId, equip, used).find(a => a.m === 'abdomen' && !used.has(a.id))?.id;
+        if (!id || r.exercises.some(e => e.exId === id)) continue;
+        used.add(id);
+        r.exercises.push({ exId: id, sets, min, max, rest, abs: true });
+      }
+    });
+  }
+  // Tope de volumen semanal por músculo: más de ~20 series directas apenas suma y cuesta recuperar
   const all = routines.flatMap(r => r.exercises);
   const stuck = new Set();
   for (let guard = 0; guard < 200; guard++) {
@@ -269,7 +292,7 @@ export function generateProgram(opts = trainingOpts(), equip = gymEquip()) {
       eff[x.m] = (eff[x.m] || 0) + e.sets * k;
       for (const m of x.sec || []) eff[m] = (eff[m] || 0) + e.sets * k * 0.5;
     }
-    const over = Object.keys(eff).find(m => !stuck.has(m) && eff[m] > (focusM.has(m) ? 24 : 22));
+    const over = Object.keys(eff).find(m => m !== 'abdomen' && !stuck.has(m) && eff[m] > (focusM.has(m) ? 24 : 22));
     if (!over) break;
     // Se recorta el ejercicio con más series de ese músculo (a igualdad, el último del programa)
     const pool = all.filter(e => exById(e.exId).m === over && e.sets > 2);

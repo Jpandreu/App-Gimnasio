@@ -115,6 +115,13 @@ export const EXERCISES = [
   E('gemelo-prensa', 'Gemelos en prensa', 'gemelos', 'maquina', 5, 'Puntas en el borde de la plataforma. Estira abajo y sube hasta la punta.'),
   E('gemelo-manc', 'Gemelos con mancuerna a una pierna', 'gemelos', 'mancuernas', 2, 'Sobre un escalón, apóyate con la mano libre. Recorrido completo.'),
   E('crunch', 'Crunch abdominal', 'abdomen', 'corporal', 0, 'Enrolla la columna despegando los hombros del suelo. Sin tirar del cuello.'),
+  E('plancha-lateral', 'Plancha lateral (segundos)', 'abdomen', 'corporal', 0, 'Codo bajo el hombro y cadera alta. Anota los segundos por lado.'),
+  E('dead-bug', 'Dead bug', 'abdomen', 'corporal', 0, 'Zona lumbar pegada al suelo. Estira brazo y pierna contrarios despacio.'),
+  E('pallof', 'Press Pallof en polea', 'abdomen', 'polea', 2.5, 'De lado a la polea, empuja al frente y aguanta sin dejar que te gire.'),
+  E('crunch-bicicleta', 'Crunch bicicleta', 'abdomen', 'corporal', 0, 'Lleva el codo hacia la rodilla contraria girando el tronco, sin tirar del cuello.'),
+  E('hollow', 'Hollow hold (segundos)', 'abdomen', 'corporal', 0, 'Lumbar pegada al suelo, piernas y hombros elevados. Anota los segundos.'),
+  E('crunch-inverso', 'Crunch inverso', 'abdomen', 'corporal', 0, 'Tumbado, lleva las rodillas al pecho despegando la pelvis del suelo.'),
+  E('elev-piernas-suelo', 'Elevación de piernas tumbado', 'abdomen', 'corporal', 0, 'Piernas casi rectas y lumbar pegada al suelo. Baja lento sin tocar.'),
 ];
 
 // Patrón de movimiento (pat) y material necesario (req). Un elemento de req que es una lista
@@ -196,6 +203,13 @@ const META = {
   'gemelo-prensa': ['gemelo', ['prensa']],
   'gemelo-manc': ['gemelo', ['mancuernas']],
   'crunch': ['core', []],
+  'plancha-lateral': ['core', []],
+  'dead-bug': ['core', []],
+  'pallof': ['core', ['polea']],
+  'crunch-bicicleta': ['core', []],
+  'hollow': ['core', []],
+  'crunch-inverso': ['core', []],
+  'elev-piernas-suelo': ['core', []],
 };
 for (const e of EXERCISES) { const [pat, req] = META[e.id] || ['otro', []]; e.pat = pat; e.req = req; }
 

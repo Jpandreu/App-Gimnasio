@@ -3,7 +3,7 @@ import { S, ui, A, SHEETS, render, commit, save, esc, num, openSheet, closeSheet
 import { exById, generateProgram, trainingOpts, adaptRoutines, blockedInRoutines, estMinutesItems, gymEquip, EXPERIENCE, plannedWeeklySets } from '../coach.js';
 import { STYLES, ZONES, recommendedSplit, cycleLength } from '../data/splits.js';
 import { MUSCLES, WEEKLY_SETS } from '../data/exercises.js';
-import { EQUIPMENT_GROUPS, EQUIPMENT, GYM_PRESETS, WEEKDAYS, SESSION_TIMES, FOCUS } from '../data/equipment.js';
+import { EQUIPMENT_GROUPS, EQUIPMENT, GYM_PRESETS, WEEKDAYS, SESSION_TIMES, FOCUS, ABS_PLANS } from '../data/equipment.js';
 import { icon } from '../ui.js';
 
 // ---------- Piezas reutilizables (también en el onboarding) ----------
@@ -46,7 +46,7 @@ export function timePick(min, act) {
 export function focusPick(focus, act) {
   return `<div class="chips">${Object.entries(FOCUS).map(([k, f]) => `<button type="button" class="chip ${focus.includes(k) ? 'on' : ''}" data-a="${act}" data-v="${k}">${f.label}</button>`).join('')}</div>`;
 }
-export const toggleFocus = (focus, v) => focus.includes(v) ? focus.filter(x => x !== v) : [...focus, v].slice(-2);
+export const toggleFocus = (focus, v) => focus.includes(v) ? focus.filter(x => x !== v) : [...focus, v];
 
 export function programPreview(opts, equip) {
   const n = opts.weekdays.length;
@@ -54,7 +54,7 @@ export function programPreview(opts, equip) {
   const p = generateProgram(opts, new Set(equip));
   const ch = p.changes;
   const ws = plannedWeeklySets(p.routines, opts);
-  const main = ['pecho', 'espalda', 'hombros', 'biceps', 'triceps', 'cuadriceps', 'femoral', 'gluteo'];
+  const main = ['pecho', 'espalda', 'hombros', 'biceps', 'triceps', 'cuadriceps', 'femoral', 'gluteo', 'gemelos', 'abdomen'];
   const setsBlock = `<div class="pp-sets"><span class="label">Series por semana (óptimo ${WEEKLY_SETS.min}-${WEEKLY_SETS.max})</span>
     <div class="pp-sets-grid">${main.map(m => { const v = Math.round(ws[m] || 0); const st = v < WEEKLY_SETS.min * 0.7 ? 'low' : v < WEEKLY_SETS.min ? 'mid' : v <= WEEKLY_SETS.max + 2 ? 'ok' : 'high';
       return `<div class="pps ${st}"><b class="num">${v}</b><span>${MUSCLES[m]}</span></div>`; }).join('')}</div></div>`;
@@ -96,7 +96,7 @@ A.gymSave = () => {
 // ---------- Hoja: Planificador ----------
 A.openPlanner = () => {
   const o = trainingOpts();
-  ui.pg = { weekdays: [...o.weekdays], sessionMin: o.sessionMin, focus: [...o.focus], exp: o.exp, style: o.style, split: { ...o.split } };
+  ui.pg = { weekdays: [...o.weekdays], sessionMin: o.sessionMin, focus: [...o.focus], exp: o.exp, style: o.style, split: { ...o.split }, abs: String(o.abs) };
   ui.pg.splitCustom = JSON.stringify(o.split) !== JSON.stringify(recommendedSplit(o.weekdays.length));
   openSheet('planner');
 };
@@ -110,7 +110,9 @@ SHEETS.planner = () => {
       ${d.style === 'split' ? splitEditor(d) : ''}
       <div class="field"><span>Tiempo por sesión</span>${timePick(d.sessionMin, 'pgTime')}</div>
       <div class="field"><span>Experiencia</span><div class="seg sm">${Object.entries(EXPERIENCE).map(([k, l]) => `<button type="button" class="${d.exp === k ? 'on' : ''}" data-a="pgExp" data-v="${k}">${l}</button>`).join('')}</div></div>
-      <div class="field"><span>Prioridad muscular (hasta 2)</span>${focusPick(d.focus, 'pgFocus')}<small class="hint">Añade una serie extra a esos músculos.</small></div>
+      <div class="field"><span>Músculos a priorizar</span>${focusPick(d.focus, 'pgFocus')}<small class="hint">Marca los que quieras. Cada uno recibe una serie extra en sus ejercicios${d.focus.length > 3 ? '. Con muchos a la vez la prioridad se diluye: lo ideal son 1-3' : ''}.</small></div>
+      <div class="field"><span>Plan de abdominales</span><div class="chips">${ABS_PLANS.map(([k, l]) => `<button type="button" class="chip ${String(d.abs) === k ? 'on' : ''}" data-a="pgAbs" data-v="${k}">${l}</button>`).join('')}</div>
+        <small class="hint">${d.abs === 'no' ? 'Añade un bloque de abdomen de unos 10 minutos al final de los entrenos que elijas.' : 'Bloque de 3 ejercicios (~10 min) al final del entreno, rotando entre 3 variantes para trabajar todo el core.'}</small></div>
       <button class="row gym-row" data-a="openGym">${icon('dumbbell')}<span class="grow"><b>Material</b><small>${preset === 'personal' ? 'Personalizado' : GYM_PRESETS[preset].name} · ${equip.length} elementos</small></span><span class="chip">Editar</span></button>
       <h3 class="section-t">Vista previa</h3>
       ${programPreview(d, equip)}`,
@@ -122,6 +124,7 @@ A.pgDay = (el) => {
   if (!ui.pg.splitCustom && ui.pg.weekdays.length >= 2) ui.pg.split = { ...recommendedSplit(ui.pg.weekdays.length) };
   render();
 };
+A.pgAbs = (el) => { ui.pg.abs = el.dataset.v; render(); };
 A.pgStyle = (el) => { ui.pg.style = el.dataset.v; render(); };
 A.pgZone = (el) => {
   const z = el.dataset.z, sp = ui.pg.split;
@@ -162,7 +165,7 @@ A.pgApply = () => {
   const d = ui.pg;
   const apply = () => {
     const p = generateProgram(d);
-    Object.assign(S.profile, { weekdays: [...d.weekdays], days: d.weekdays.length, sessionMin: d.sessionMin, focus: [...d.focus], exp: d.exp, style: d.style, split: { ...d.split } });
+    Object.assign(S.profile, { weekdays: [...d.weekdays], days: d.weekdays.length, sessionMin: d.sessionMin, focus: [...d.focus], exp: d.exp, style: d.style, split: { ...d.split }, abs: d.abs });
     S.programName = p.name; S.routines = p.routines;
     ui.sheets = []; commit(); toast('Programa actualizado');
   };

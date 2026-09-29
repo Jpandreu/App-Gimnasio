@@ -4,6 +4,7 @@ import { dayLog, peekLog, foodById, macrosFor, makeLogItem } from '../coach.js';
 import { DISHES, DISH_BY_ID, defaultSel } from '../data/dishes.js';
 import { MEAL_LABELS, MEAL_ORDER } from '../data/plans.js';
 import { icon } from '../ui.js';
+import { DISH_EMOJI, foodEmoji } from '../data/emoji.js';
 
 const kcalFmt = v => Math.round(v).toLocaleString('es-ES');
 const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -50,7 +51,7 @@ export function dishMatches(q) {
 
 export const dishGrid = () => `<div class="dish-grid">${DISHES.map(d => {
   const t = dishTotals(d, defaultSel(d));
-  return `<button class="dish-tile" data-a="openDish" data-id="${d.id}"><b>${esc(d.name)}</b><small class="num">desde ~${kcalFmt(t.kcal)} kcal</small></button>`;
+  return `<button class="dish-tile" data-a="openDish" data-id="${d.id}"><span class="dish-emo" aria-hidden="true">${DISH_EMOJI[d.id] || '🍽️'}</span><b>${esc(d.name)}</b><small class="num">desde ~${kcalFmt(t.kcal)} kcal</small></button>`;
 }).join('')}</div>`;
 
 A.openDish = (el) => {
@@ -62,7 +63,7 @@ A.openDish = (el) => {
 SHEETS.dish = () => {
   const b = ui.db, d = DISH_BY_ID[b.id], t = dishTotals(d, b.sel, b.qty);
   return {
-    title: d.name, full: true,
+    title: `${DISH_EMOJI[d.id] || ''} ${d.name}`, full: true,
     body: `<div class="amount-prev dish-prev">${macroPreview(t)}</div>
       <div class="qty-row"><span>Cantidad</span>
         <div class="stepper"><button type="button" data-a="dishQty" data-v="-0.5" aria-label="Menos" ${b.qty <= 0.5 ? 'disabled' : ''}>${icon('minus')}</button>
@@ -74,7 +75,7 @@ SHEETS.dish = () => {
           return `<button type="button" class="chip opt-chip ${on ? 'on' : ''} ${g.t}" data-a="dishOpt" data-g="${gi}" data-o="${oi}" aria-pressed="${on}">${g.t === 'many' ? `<i class="ck">${on ? icon('check') : ''}</i>` : ''}${esc(op.l)}${k ? ` <em>${k > 0 ? '+' : ''}${k}</em>` : ''}</button>`;
         }).join('')}</div></div>`).join('')}
       <div class="field"><span>Comida</span><div class="chips wrap">${MEAL_ORDER.map(m => `<button type="button" class="chip ${b.meal === m ? 'on' : ''}" data-a="dishMeal" data-v="${m}">${MEAL_LABELS[m]}</button>`).join('')}</div></div>
-      <details class="dish-ing"><summary class="hint">Ver ingredientes y cantidades</summary><ul>${dishIngredients(d, b).map(([n, g]) => `<li><span>${esc(n)}</span><span class="num">${Math.round(g)} g</span></li>`).join('')}</ul></details>`,
+      <details class="dish-ing"><summary class="hint">Ver ingredientes y cantidades</summary><ul>${dishIngredients(d, b).map(([n, g, e]) => `<li><span>${e} ${esc(n)}</span><span class="num">${Math.round(g)} g</span></li>`).join('')}</ul></details>`,
     foot: b.editId
       ? `<div class="btn-row"><button class="btn ghost danger" data-a="dishDelete">${icon('trash')} Quitar</button><button class="btn primary" data-a="dishSave">Guardar</button></div>`
       : `<button class="btn primary block" data-a="dishSave">Añadir · ${kcalFmt(t.kcal)} kcal</button>`,
@@ -82,8 +83,8 @@ SHEETS.dish = () => {
 };
 function dishIngredients(d, b) {
   const m = new Map();
-  d.groups.forEach((g, gi) => (b.sel[gi] || []).forEach(oi => g.o[oi]?.i.forEach(([id, gr]) => { const f = foodById(id); if (f) m.set(f.name, (m.get(f.name) || 0) + gr * b.qty); })));
-  return [...m.entries()];
+  d.groups.forEach((g, gi) => (b.sel[gi] || []).forEach(oi => g.o[oi]?.i.forEach(([id, gr]) => { const f = foodById(id); if (f) m.set(f.name, [(m.get(f.name)?.[0] || 0) + gr * b.qty, foodEmoji(f)]); })));
+  return [...m.entries()].map(([n, [g, e]]) => [n, g, e]);
 }
 A.dishOpt = (el) => {
   const b = ui.db, d = DISH_BY_ID[b.id], gi = +el.dataset.g, oi = +el.dataset.o, g = d.groups[gi];
@@ -201,7 +202,7 @@ SHEETS.recipe = () => {
     body: `<p class="muted">Añade los ingredientes en crudo y en cuántas raciones sale. Se guardará en "Mis alimentos".</p>
       <label class="field"><span>Nombre</span><input id="rc-name" type="text" placeholder="Ej. Lentejas de mi madre" value="${esc(r.name)}" data-in="rcName"></label>
       <div class="qty-row"><span>Raciones</span><div class="stepper"><button type="button" data-a="rcServ" data-v="-1" ${per <= 1 ? 'disabled' : ''} aria-label="Menos raciones">${icon('minus')}</button><span class="num">${per}</span><button type="button" data-a="rcServ" data-v="1" aria-label="Más raciones">${icon('plus')}</button></div></div>
-      <div class="card inset rc-list">${r.items.length ? r.items.map((it, i) => `<div class="rc-row"><span class="grow"><b>${esc(it.name)}</b><small class="muted num">${fmtNum(it.g, 0)} g · ${kcalFmt(it.kcal)} kcal</small></span><button class="icon-btn sm" data-a="rcDel" data-i="${i}" aria-label="Quitar">${icon('x')}</button></div>`).join('') : '<p class="muted">Aún no hay ingredientes.</p>'}
+      <div class="card inset rc-list">${r.items.length ? r.items.map((it, i) => `<div class="rc-row"><span class="emo">${foodEmoji(foodById(it.fid))}</span><span class="grow"><b>${esc(it.name)}</b><small class="muted num">${fmtNum(it.g, 0)} g · ${kcalFmt(it.kcal)} kcal</small></span><button class="icon-btn sm" data-a="rcDel" data-i="${i}" aria-label="Quitar">${icon('x')}</button></div>`).join('') : '<p class="muted">Aún no hay ingredientes.</p>'}
         <button class="btn sm ghost" data-a="rcAddIng">${icon('plus')} Añadir ingrediente</button></div>
       ${r.items.length ? `<div class="card inset"><span class="label">Por ración (${fmtNum(t.g / per, 0)} g)</span><div class="amount-prev">${macroPreview({ kcal: t.kcal / per, p: t.p / per, c: t.c / per, f: t.f / per })}</div></div>` : ''}`,
     foot: `<button class="btn primary block" data-a="rcSave" ${r.items.length ? '' : 'disabled'}>Guardar receta</button>`,

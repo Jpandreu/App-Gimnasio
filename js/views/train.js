@@ -5,6 +5,7 @@ import { WEEKDAYS, GYM_PRESETS } from '../data/equipment.js';
 import { presetOf } from './gym.js';
 import { icon, seg, empty, lineChart } from '../ui.js';
 import { estMinutes } from './today.js';
+import { cardioTab } from './cardio.js';
 import { startWorkout, addExercisesToWorkout, swapWorkoutExercise } from './workout.js';
 
 const allExercises = () => [...(S.customExercises || []), ...EXERCISES];
@@ -13,8 +14,8 @@ export function trainView() {
   const sub = ui.sub.entrenar;
   return `<div class="screen" data-scroll="entrenar-${sub}">
     <header class="top"><h1 class="title">Entrenar</h1></header>
-    ${seg('trainSub', sub, [['rutinas', 'Rutinas'], ['ejercicios', 'Ejercicios'], ['historial', 'Historial']])}
-    ${sub === 'rutinas' ? routinesTab() : sub === 'ejercicios' ? libraryTab() : historyTab()}
+    ${seg('trainSub', sub, [['rutinas', 'Rutinas'], ['cardio', 'Cardio'], ['ejercicios', 'Ejercicios'], ['historial', 'Historial']])}
+    ${sub === 'rutinas' ? routinesTab() : sub === 'cardio' ? cardioTab() : sub === 'ejercicios' ? libraryTab() : historyTab()}
   </div>`;
 }
 A.trainSub = (el) => { ui.sub.entrenar = el.dataset.v; render(); };

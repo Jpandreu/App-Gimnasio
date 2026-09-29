@@ -60,6 +60,17 @@ export const FOCUS = {
   espalda: { label: 'Espalda', m: ['espalda'] },
   hombros: { label: 'Hombros', m: ['hombros'] },
   brazos: { label: 'Brazos', m: ['biceps', 'triceps'] },
-  piernas: { label: 'Piernas', m: ['cuadriceps', 'femoral', 'gemelos'] },
+  piernas: { label: 'Piernas', m: ['cuadriceps', 'femoral'] },
   gluteo: { label: 'Glúteo', m: ['gluteo'] },
+  abdomen: { label: 'Abdomen', m: ['abdomen'] },
+  gemelos: { label: 'Gemelos', m: ['gemelos'] },
 };
+
+// Plan de abdominales: cuántos entrenos de la semana terminan con un bloque de abdomen
+export const ABS_PLANS = [['no', 'No'], ['2', '2 días'], ['3', '3 días'], ['all', 'Todos los días']];
+// Bloques rotativos de abdomen: [ejercicio, series, repMin, repMax, descanso]
+export const ABS_BLOCKS = [
+  [['crunch-polea', 3, 12, 15, 60], ['plancha', 3, 30, 60, 45], ['elev-piernas', 3, 10, 15, 60]],
+  [['rueda', 3, 8, 12, 60], ['plancha-lateral', 3, 20, 40, 45], ['crunch-bicicleta', 3, 15, 20, 45]],
+  [['pallof', 3, 10, 12, 45], ['crunch-inverso', 3, 12, 15, 45], ['dead-bug', 3, 10, 12, 45]],
+];
